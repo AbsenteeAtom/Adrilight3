@@ -10,6 +10,7 @@ using NLog.Config;
 using NLog.Targets;
 using System;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
@@ -20,6 +21,14 @@ namespace adrilight
     {
         private static Mutex _adrilightMutex;
         private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern bool SystemParametersInfo(uint uAction, uint uParam, ref bool lpvParam, uint fuWinIni);
+        private const uint SPI_GETSCREENSAVERRUNNING = 0x0072;
+
+        private bool _transferActiveBeforeLock = false;
+        private bool _screenSaverWasActive = false;
+        private DispatcherTimer _screenSaverTimer;
 
         protected override void OnStartup(StartupEventArgs startupEvent)
         {
@@ -82,6 +91,8 @@ namespace adrilight
 
             _tcpControlServer = new TcpControlServer(UserSettings, 5080);
             _tcpControlServer.Start();
+
+            SetupScreenSaverTimer();
         }
 
         private bool IsSupported()
@@ -92,6 +103,7 @@ namespace adrilight
 
         protected override void OnExit(ExitEventArgs e)
         {
+            _screenSaverTimer?.Stop();
             _tcpControlServer?.Stop();
             _nightLightDetection?.Stop();
             base.OnExit(e);
@@ -149,6 +161,51 @@ namespace adrilight
                 if (e.Mode == PowerModes.Resume)
                     GC.Collect();
             };
+
+            SystemEvents.SessionSwitch += (s, e) =>
+            {
+                if (e.Reason == SessionSwitchReason.SessionLock)
+                {
+                    _log.Debug("Session locked — turning off LEDs.");
+                    _transferActiveBeforeLock = UserSettings.TransferActive;
+                    UserSettings.TransferActive = false;
+                }
+                else if (e.Reason == SessionSwitchReason.SessionUnlock)
+                {
+                    _log.Debug("Session unlocked — restoring LED state.");
+                    if (_transferActiveBeforeLock)
+                        UserSettings.TransferActive = true;
+                }
+            };
+        }
+
+        private void SetupScreenSaverTimer()
+        {
+            _screenSaverTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(5)
+            };
+            _screenSaverTimer.Tick += (s, e) =>
+            {
+                bool isRunning = false;
+                SystemParametersInfo(SPI_GETSCREENSAVERRUNNING, 0, ref isRunning, 0);
+
+                if (isRunning && !_screenSaverWasActive)
+                {
+                    _log.Debug("Screen saver started — turning off LEDs.");
+                    _screenSaverWasActive = true;
+                    _transferActiveBeforeLock = UserSettings.TransferActive;
+                    UserSettings.TransferActive = false;
+                }
+                else if (!isRunning && _screenSaverWasActive)
+                {
+                    _log.Debug("Screen saver stopped — restoring LED state.");
+                    _screenSaverWasActive = false;
+                    if (_transferActiveBeforeLock)
+                        UserSettings.TransferActive = true;
+                }
+            };
+            _screenSaverTimer.Start();
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
