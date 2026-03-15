@@ -50,6 +50,12 @@
                     ● Default frame rate reduced to 30fps — significantly lower GPU usage with no visible difference to LEDs.
                 </TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 6">
+                    ● LEDs automatically turn off when the session is locked and back on when unlocked.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 6">
+                    ● LEDs automatically turn off when the screen saver activates and back on when it stops.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 6">
                     ● Updated all dependencies to current versions.
                 </TextBlock>
             </StackPanel>
