@@ -1,38 +1,24 @@
-﻿using adrilight.Fakes;
+﻿using adrilight.Resources;
 using adrilight.ui;
-using adrilight.View;
+using adrilight.Util;
 using adrilight.ViewModel;
-using GalaSoft.MvvmLight;
 using Microsoft.Win32;
 using Ninject;
+using Ninject.Extensions.Conventions;
 using NLog;
 using NLog.Config;
 using NLog.Targets;
 using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
-using Ninject.Extensions.Conventions;
-using adrilight.Resources;
-using adrilight.Util;
 
 namespace adrilight
-{   
-    /// <summary>
-    /// Interaction logic for App.xaml
-    /// </summary>
+{
     public sealed partial class App : Application
     {
         private static Mutex _adrilightMutex;
-
         private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
 
         protected override void OnStartup(StartupEventArgs startupEvent)
@@ -42,27 +28,24 @@ namespace adrilight
             if (!IsSupported())
             {
                 var os = Environment.OSVersion;
-                MessageBox.Show($"Your Windows version is not supported by adrilight, sorry!\n\n"
-                    +$"Platform={os.Platform}\nVersion={os.Version}\nService Pack={os.ServicePack}\n\n\n"
-                    +"You should consider upgrading to Windows 10. Adrilight should run on Windows 8 and later but is only actively tested and developed for Windows 10."
-                    , "Your Windows version is too old!", MessageBoxButton.OK);
-
+                MessageBox.Show(
+                    $"Your Windows version is not supported by adrilight, sorry!\n\n"
+                    + $"Platform={os.Platform}\nVersion={os.Version}\nService Pack={os.ServicePack}\n\n\n"
+                    + "adrilight requires Windows 10 or later.",
+                    "Your Windows version is too old!", MessageBoxButton.OK);
                 Shutdown();
                 return;
             }
 
-            if (!ViewModelBase.IsInDesignModeStatic)
+            _adrilightMutex = new Mutex(true, "adrilight2");
+            if (!_adrilightMutex.WaitOne(TimeSpan.Zero, true))
             {
-                _adrilightMutex = new Mutex(true, "adrilight2");
-                if (!_adrilightMutex.WaitOne(TimeSpan.Zero, true))
-                {
-                    //another instance is already running!
-                    MessageBox.Show("There is already an instance of adrilight running. Please start only a single instance at any given time."
-                        , "Adrilight is already running!");
-                    Shutdown();
-                    return;
-                }
+                MessageBox.Show("There is already an instance of adrilight running. Please start only a single instance at any given time.",
+                    "Adrilight is already running!");
+                Shutdown();
+                return;
             }
+
             SetupDebugLogging();
             SetupLoggingForProcessWideEvents();
 
@@ -73,21 +56,17 @@ namespace adrilight
 
             this.Resources["Locator"] = new ViewModelLocator(kernel);
 
-
             UserSettings = kernel.Get<IUserSettings>();
 
             var isNewVersion = VersionNumber != UserSettings.AdrilightVersion;
             if (!IsPrivateBuild && isNewVersion)
             {
-                //place for upgrades of settings between versions
                 UserSettings.AdrilightVersion = VersionNumber;
-                if(UserSettings.ConfigFileVersion == 1)
+                if (UserSettings.ConfigFileVersion == 1)
                 {
                     UserSettings.ConfigFileVersion = 2;
-
-                    //convert from weird legacy led matrix width and height to simple strip length!
                     UserSettings.SpotsX = Math.Max(1, UserSettings.SpotsX);
-                    UserSettings.SpotsY = Math.Max(1, UserSettings.SpotsY-2);
+                    UserSettings.SpotsY = Math.Max(1, UserSettings.SpotsY - 2);
                 }
             }
 
@@ -101,60 +80,54 @@ namespace adrilight
             _nightLightDetection = kernel.Get<NightLightDetection>();
             _nightLightDetection.Start();
 
-            kernel.Get<AdrilightUpdater>().StartThread();
+            _tcpControlServer = new TcpControlServer(UserSettings, 5080);
+            _tcpControlServer.Start();
         }
 
         private bool IsSupported()
         {
             var os = Environment.OSVersion;
-            //src https://stackoverflow.com/questions/2819934/detect-windows-version-in-net/2819974#2819974
-
-            //adrilight supports Win8, Win8.1 and Win10
-            return os.Platform == PlatformID.Win32NT && (os.Version.Major > 6 || os.Version.Major == 6 && os.Version.Minor >= 2);
+            return os.Platform == PlatformID.Win32NT && os.Version.Major >= 10;
         }
 
         protected override void OnExit(ExitEventArgs e)
         {
+            _tcpControlServer?.Stop();
             _nightLightDetection?.Stop();
-
             base.OnExit(e);
             _adrilightMutex?.Dispose();
-
             LogManager.Shutdown();
         }
 
         internal static IKernel SetupDependencyInjection(bool isInDesignMode)
         {
             var kernel = new StandardKernel();
-            if(isInDesignMode)
+            if (isInDesignMode)
             {
-                //setup fakes
-                kernel.Bind<IUserSettings>().To<UserSettingsFake>().InSingletonScope();
-                kernel.Bind<IContext>().To<ContextFake>().InSingletonScope();
-                kernel.Bind<ISpotSet>().To<SpotSetFake>().InSingletonScope();
-                kernel.Bind<ISerialStream>().To<SerialStreamFake>().InSingletonScope();
-                kernel.Bind<IDesktopDuplicatorReader>().To<DesktopDuplicatorReaderFake>().InSingletonScope();
+                kernel.Bind<IUserSettings>().To<Fakes.UserSettingsFake>().InSingletonScope();
+                kernel.Bind<IContext>().To<Fakes.ContextFake>().InSingletonScope();
+                kernel.Bind<ISpotSet>().To<Fakes.SpotSetFake>().InSingletonScope();
+                kernel.Bind<ISerialStream>().To<Fakes.SerialStreamFake>().InSingletonScope();
+                kernel.Bind<IDesktopDuplicatorReader>().To<Fakes.DesktopDuplicatorReaderFake>().InSingletonScope();
             }
             else
             {
-                //setup real implementations
                 var settingsManager = new UserSettingsManager();
                 var settings = settingsManager.LoadIfExists() ?? settingsManager.MigrateOrDefault();
                 kernel.Bind<IUserSettings>().ToConstant(settings);
-
                 kernel.Bind<IContext>().To<WpfContext>().InSingletonScope();
                 kernel.Bind<ISpotSet>().To<SpotSet>().InSingletonScope();
                 kernel.Bind<ISerialStream>().To<SerialStream>().InSingletonScope();
                 kernel.Bind<IDesktopDuplicatorReader>().To<DesktopDuplicatorReader>().InSingletonScope();
             }
+
             kernel.Bind<SettingsViewModel>().ToSelf().InSingletonScope();
             kernel.Bind(x => x.FromThisAssembly()
-            .SelectAllClasses()
-            .InheritedFrom<ISelectableViewPart>()
-            .BindAllInterfaces());
+                .SelectAllClasses()
+                .InheritedFrom<ISelectableViewPart>()
+                .BindAllInterfaces());
             kernel.Bind<NightLightDetection>().ToSelf().InSingletonScope();
 
-            //eagerly create required singletons [could be replaced with actual pipeline]
             var desktopDuplicationReader = kernel.Get<IDesktopDuplicatorReader>();
             var serialStream = kernel.Get<ISerialStream>();
 
@@ -164,7 +137,7 @@ namespace adrilight
         private void SetupLoggingForProcessWideEvents()
         {
             AppDomain.CurrentDomain.UnhandledException +=
-    (sender, args) => ApplicationWideException(sender, args.ExceptionObject as Exception, "CurrentDomain.UnhandledException");
+                (sender, args) => ApplicationWideException(sender, args.ExceptionObject as Exception, "CurrentDomain.UnhandledException");
 
             DispatcherUnhandledException += (sender, args) => ApplicationWideException(sender, args.Exception, "DispatcherUnhandledException");
 
@@ -173,10 +146,8 @@ namespace adrilight
             SystemEvents.PowerModeChanged += (s, e) =>
             {
                 _log.Debug("Changing Powermode to {0}", e.Mode);
-                if(e.Mode == PowerModes.Resume)
-                {
+                if (e.Mode == PowerModes.Resume)
                     GC.Collect();
-                }
             };
         }
 
@@ -187,15 +158,14 @@ namespace adrilight
             var debuggerTarget = new DebuggerTarget() { Layout = "${processtime} ${message:exceptionSeparator=\n\t:withException=true}" };
             config.AddTarget("debugger", debuggerTarget);
             config.LoggingRules.Add(new LoggingRule("*", LogLevel.Debug, debuggerTarget));
-
             LogManager.Configuration = config;
-
-            _log.Info($"DEBUG logging set up!");
+            _log.Info("DEBUG logging set up!");
         }
 
-        SettingsWindow _mainForm;
+        private SettingsWindow _mainForm;
         private IKernel kernel;
         private NightLightDetection _nightLightDetection;
+        private TcpControlServer _tcpControlServer;
 
         private void OpenSettingsWindow()
         {
@@ -207,7 +177,6 @@ namespace adrilight
             }
             else
             {
-                //bring to front?
                 _mainForm.Focus();
             }
         }
@@ -215,36 +184,35 @@ namespace adrilight
         private void MainForm_FormClosed(object sender, EventArgs e)
         {
             if (_mainForm == null) return;
-
-            //deregister to avoid memory leak
             _mainForm.Closed -= MainForm_FormClosed;
             _mainForm = null;
         }
 
         private void SetupNotifyIcon()
         {
-            var icon = new System.Drawing.Icon(Assembly.GetExecutingAssembly().GetManifestResourceStream("adrilight.adrilight_icon.ico"));
-            var contextMenu = new System.Windows.Forms.ContextMenu();
-            contextMenu.MenuItems.Add(CreateSendingMenuItem());
-            
-            contextMenu.MenuItems.Add(new System.Windows.Forms.MenuItem("Settings...", (s, e) => OpenSettingsWindow()));
-            contextMenu.MenuItems.Add(new System.Windows.Forms.MenuItem("Exit", (s, e) => Shutdown(0)));
+            var iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "adrilight_icon.ico");
+            var icon = new System.Drawing.Icon(iconPath);
+
+            var contextMenu = new System.Windows.Forms.ContextMenuStrip();
+            contextMenu.Items.Add(CreateSendingMenuItem());
+            contextMenu.Items.Add("Settings...", null, (s, e) => OpenSettingsWindow());
+            contextMenu.Items.Add("Exit", null, (s, e) => Shutdown(0));
 
             var notifyIcon = new System.Windows.Forms.NotifyIcon()
             {
                 Text = $"adrilight {VersionNumber}",
                 Icon = icon,
                 Visible = true,
-                ContextMenu = contextMenu
+                ContextMenuStrip = contextMenu
             };
-            notifyIcon.DoubleClick += (s, e) => { OpenSettingsWindow(); };
-            
+            notifyIcon.DoubleClick += (s, e) => OpenSettingsWindow();
+
             Exit += (s, e) => notifyIcon.Dispose();
         }
 
-        private System.Windows.Forms.MenuItem CreateSendingMenuItem()
+        private System.Windows.Forms.ToolStripMenuItem CreateSendingMenuItem()
         {
-            var menuItem = new System.Windows.Forms.MenuItem();
+            var menuItem = new System.Windows.Forms.ToolStripMenuItem();
             menuItem.Click += (_, __) => UserSettings.TransferActive = !UserSettings.TransferActive;
 
             void UpdateMenuItem()
@@ -253,11 +221,12 @@ namespace adrilight
                 menuItem.Checked = UserSettings.TransferActive;
             }
 
-            //initial update
             UpdateMenuItem();
-
-            //update on changed setting
-            UserSettings.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(UserSettings.TransferActive)) { UpdateMenuItem(); } };
+            UserSettings.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(UserSettings.TransferActive))
+                    UpdateMenuItem();
+            };
 
             return menuItem;
         }
@@ -288,13 +257,11 @@ namespace adrilight
         {
             _log.Fatal(ex, $"ApplicationWideException from sender={sender}, adrilight version={VersionNumber}, eventSource={eventSource}");
 
-            var sb = new StringBuilder();
+            var sb = new System.Text.StringBuilder();
             sb.AppendLine($"Sender: {sender}");
             sb.AppendLine($"Source: {eventSource}");
             if (sender != null)
-            {
                 sb.AppendLine($"Sender Type: {sender.GetType().FullName}");
-            }
             sb.AppendLine("-------");
             do
             {
@@ -306,14 +273,8 @@ namespace adrilight
             } while (ex != null);
 
             MessageBox.Show(sb.ToString(), "unhandled exception :-(");
-            try
-            {
-                Shutdown(-1);
-            }
-            catch
-            {
-                Environment.Exit(-1);
-            }
+            try { Shutdown(-1); }
+            catch { Environment.Exit(-1); }
         }
     }
 }
