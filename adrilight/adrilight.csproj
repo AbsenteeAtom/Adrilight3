@@ -51,6 +51,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="adrilight_icon.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="SharpDX">
       <HintPath>$(USERPROFILE)\.nuget\packages\sharpdx\4.2.0\lib\net45\SharpDX.dll</HintPath>
     </Reference>
