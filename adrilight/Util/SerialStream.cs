@@ -207,14 +207,18 @@ namespace adrilight
                             minTimespan = (int)(fastLedTime + serialTransferTime) + 1;
                         }
 
-                        var (outputBuffer, streamLength2) = GetOutputStream();
-                        serialPort.Write(outputBuffer, 0, streamLength2);
-                        ArrayPool<byte>.Shared.Return(outputBuffer);
-
-                        if (++frameCounter == 1024 && blackFrameCounter > 1000)
+                        if (SpotSet.IsDirty)
                         {
-                            var settingsJson = JsonConvert.SerializeObject(UserSettings, Formatting.None);
-                            _log.Info($"Sent {frameCounter} frames already. {blackFrameCounter} were completely black. Settings= {settingsJson}");
+                            SpotSet.IsDirty = false;
+                            var (outputBuffer, streamLength2) = GetOutputStream();
+                            serialPort.Write(outputBuffer, 0, streamLength2);
+                            ArrayPool<byte>.Shared.Return(outputBuffer);
+
+                            if (++frameCounter == 1024 && blackFrameCounter > 1000)
+                            {
+                                var settingsJson = JsonConvert.SerializeObject(UserSettings, Formatting.None);
+                                _log.Info($"Sent {frameCounter} frames already. {blackFrameCounter} were completely black. Settings= {settingsJson}");
+                            }
                         }
 
                         Thread.Sleep(minTimespan);

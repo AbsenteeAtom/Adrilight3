@@ -41,8 +41,8 @@ namespace adrilight
         }
 
         public ISpot[] Spots { get; set; }
-
         public object Lock { get; } = new object();
+        public bool IsDirty { get; set; } = false;
 
         public static int CountLeds(int spotsX, int spotsY)
         {

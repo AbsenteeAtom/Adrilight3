@@ -9,6 +9,7 @@ namespace adrilight
 
         ISpot[] Spots { get; set; }
         object Lock { get; }
+        bool IsDirty { get; set; }
 
         void IndicateMissingValues();
     }

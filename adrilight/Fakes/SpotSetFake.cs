@@ -22,6 +22,8 @@ namespace adrilight.Fakes
 
         public object Lock { get; } = new object();
 
+        public bool IsDirty { get; set; } = false;
+
         public int ExpectedScreenWidth => 1920;
 
         public int ExpectedScreenHeight => 1080;

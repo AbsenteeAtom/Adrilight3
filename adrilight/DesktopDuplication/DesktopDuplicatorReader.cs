@@ -142,7 +142,6 @@ namespace adrilight
                             return;
                         }
 
-                        // use parallel only for larger spot counts where the overhead is worth it
                         const int parallelThreshold = 40;
                         if (SpotSet.Spots.Length >= parallelThreshold)
                         {
@@ -158,6 +157,8 @@ namespace adrilight
                                 ProcessSpot(spot, bitmapData, useLinearLighting, isPreviewRunning);
                             }
                         }
+
+                        SpotSet.IsDirty = true;
 
                         if (isPreviewRunning)
                             SettingsViewModel.PreviewSpots = SpotSet.Spots;
