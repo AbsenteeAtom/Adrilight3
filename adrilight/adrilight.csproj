@@ -52,7 +52,7 @@
 
   <ItemGroup>
     <Content Include="adrilight_icon.ico">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
