@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="adrilight.View.SettingsWindowComponents.GeneralSetup"
+<UserControl x:Class="adrilight.View.SettingsWindowComponents.GeneralSetup"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -34,7 +34,7 @@
                 <StackPanel Grid.Row="1" Margin="8 24 8 8">
                     <DockPanel Margin="0 8 0 0">
                         <ToggleButton DockPanel.Dock="Right"
-                        Style="{StaticResource MaterialDesignSwitchAccentToggleButton}" VerticalAlignment="Center" Margin="8 0 0 0"
+                        Style="{StaticResource MaterialDesignSwitchToggleButton}" VerticalAlignment="Center" Margin="8 0 0 0"
                           ToolTip="Mirror Y" IsChecked="{Binding Settings.Autostart}" />
                         <TextBlock FontWeight="Bold">Autostart with Windows</TextBlock>
                     </DockPanel>
@@ -60,7 +60,7 @@
                 <StackPanel Grid.Row="1" Margin="8 24 8 8">
                     <DockPanel Margin="0 8 0 0">
                         <ToggleButton DockPanel.Dock="Right"
-                        Style="{StaticResource MaterialDesignSwitchAccentToggleButton}" VerticalAlignment="Center" Margin="8 0 0 0"
+                        Style="{StaticResource MaterialDesignSwitchToggleButton}" VerticalAlignment="Center" Margin="8 0 0 0"
                           ToolTip="Mirror Y" IsChecked="{Binding Settings.StartMinimized}" />
                         <TextBlock FontWeight="Bold">Start minimized</TextBlock>
                     </DockPanel>

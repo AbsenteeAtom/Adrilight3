@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="adrilight.View.SettingsWindowComponents.LedSetup"
+<UserControl x:Class="adrilight.View.SettingsWindowComponents.LedSetup"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -107,7 +107,7 @@
                     <DockPanel>
                         <TextBlock FontWeight="Bold">Complete LED Count</TextBlock>
                         <TextBlock FontWeight="Bold" Text="{Binding LedCount}" 
-                               Foreground="{DynamicResource SecondaryAccentBrush}"
+                               Foreground="{DynamicResource MaterialDesignSecondaryLightBrush}"
                                DockPanel.Dock="Right"
                                TextWrapping="Wrap" HorizontalAlignment="Right" />
                     </DockPanel>
@@ -136,13 +136,13 @@
                 <StackPanel Grid.Row="1" Margin="8 24 8 8">
                     <DockPanel>
                         <ToggleButton DockPanel.Dock="Right"
-                        Style="{StaticResource MaterialDesignSwitchAccentToggleButton}" VerticalAlignment="Center" Margin="8 0 0 0"
+                        Style="{StaticResource MaterialDesignSwitchToggleButton}" VerticalAlignment="Center" Margin="8 0 0 0"
                           ToolTip="Mirror X" IsChecked="{Binding Settings.MirrorX}" />
                         <TextBlock FontWeight="Bold">Mirror X</TextBlock>
                     </DockPanel>
                     <DockPanel Margin="0 8 0 0">
                         <ToggleButton DockPanel.Dock="Right"
-                        Style="{StaticResource MaterialDesignSwitchAccentToggleButton}" VerticalAlignment="Center" Margin="8 0 0 0"
+                        Style="{StaticResource MaterialDesignSwitchToggleButton}" VerticalAlignment="Center" Margin="8 0 0 0"
                           ToolTip="Mirror Y" IsChecked="{Binding Settings.MirrorY}" />
                         <TextBlock FontWeight="Bold">Mirror Y</TextBlock>
                     </DockPanel>
