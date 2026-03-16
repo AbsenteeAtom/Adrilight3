@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 2.1.0 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.0.0 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`

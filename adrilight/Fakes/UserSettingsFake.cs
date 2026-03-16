@@ -36,7 +36,7 @@ namespace adrilight.Fakes
 
         public bool SendRandomColors { get; set; }
         public int LimitFps { get; set; } = 60;
-        public string AdrilightVersion { get; set; } = "2.0.6";
+        public string AdrilightVersion { get; set; } = "3.0.0";
 
         public AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get; set; } = AlternateWhiteBalanceModeEnum.Off;
 #pragma warning disable CS0067
