@@ -75,7 +75,7 @@ The `publish/` folder is excluded from git via `.gitignore`.
 - Removed `AdrilightUpdater.cs` (depended on Squirrel and Semver)
 - Icon loading changed from embedded manifest resource to file copy (`CopyToOutputDirectory: PreserveNewest`)
 - Fixed `Process.Start(url)` → `Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })`
-- Added `AssemblyVersion` and `AssemblyFileVersion` 2.1.0 to `AssemblyInfo.cs`
+- Added `AssemblyVersion` and `AssemblyFileVersion` to `AssemblyInfo.cs` (now 3.0.0)
 - Set `GenerateAssemblyInfo=false` to prevent conflict with existing `AssemblyInfo.cs`
 
 ### MaterialDesign v4 Compatibility
@@ -171,10 +171,40 @@ The test project (`adrilight.Tests`) was on legacy .NET 4.7.2 and could no longe
 
 ---
 
-### 2026-03-16 — Rename Perry Edition → AbsenteeAtom Edition
+### 2026-03-16 — Rename Perry Edition → AbsenteeAtom Edition; bump to v3.0.0
 
-- Updated `WhatsNew.xaml` version string
-- Updated `CLAUDE.md`
+- `WhatsNew.xaml` version string updated
+- `AssemblyInfo.cs` version bumped 2.1.0 → 3.0.0, company `fabsenet` → `AbsenteeAtom`
+- `UserSettingsFake` default `AdrilightVersion` updated to `3.0.0`
+- `README.md` fully rewritten — hardware setup, software setup, TCP API docs, build instructions, credits
+
+---
+
+### 2026-03-16 — About page restructured (`WhatsNew.xaml`)
+
+- Removed "Remote 7" product reference from TCP server description
+- Added brief description of what adrilight does to the header card
+- Added credits line (fabsenet, jasonpang)
+- Reorganised changes into sections: Platform, New Features, Performance, Reliability
+- Added TCP Control API quick-reference table as a third card
+
+---
+
+### 2026-03-16 — XAML theme resource fixes
+
+**`LedSetup.xaml`**
+- `Complete LED Count` number `TextBlock`: removed explicit `Foreground="{DynamicResource MaterialDesignSecondaryLightBrush}"` — was resolving to black in the active theme; now inherits `MaterialDesignBody` from the UserControl
+
+**`LightingModeSetup.xaml`**
+- Heart icon: `{StaticResource PrimaryHueLightBrush}` → `{DynamicResource PrimaryHueLightBrush}` — `StaticResource` for a theme brush resolves once at startup and won't follow theme changes
+
+**`Whitebalance.xaml`**
+- Night Light mode hyperlink: hardcoded `Foreground="#FF84C1FF"` → `{DynamicResource PrimaryHueMidBrush}` — light blue was invisible on light backgrounds
+
+**Intentionally left unchanged:**
+- Decorative icon colours in `Whitebalance.xaml` (NightSky/AutoAwesome blue, Brain/WhiteBalanceSunny gold) — semantic colour choices
+- Preview canvas gradient (`#686868` → `#C2C2C2`) — functional backdrop for the LED overlay display
+- "EXPERIMENTAL!" red warning text (`#FFFD7474`) — intentional
 
 ---
 
