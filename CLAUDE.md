@@ -4,26 +4,28 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
+This is **adrilight 2.1.0 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
 - CommunityToolkit.Mvvm (ObservableObject, RelayCommand)
 - Ninject for dependency injection
 - NLog for logging
-- SharpDX (DXGI / Direct3D11) for screen capture
+- SharpDX 4.2.0 (DXGI / Direct3D11) for screen capture — net45 DLL variants via direct HintPath
 - System.Reactive
 - Microsoft.ML for Night Light mode detection
-- MaterialDesignThemes v4
+- MaterialDesignThemes v4.9.0
 
 ### Project layout
 ```
 adrilight/
-  App.xaml / App.xaml.cs         — entry point, DI setup
+  App.xaml / App.xaml.cs         — entry point, DI setup, session/screensaver hooks
   DesktopDuplication/            — SharpDX screen capture
   Extensions/                    — ArrayExtensions (Swap)
   Fakes/                         — Design-time fake implementations
   Settings/                      — IUserSettings interface + UserSettings impl
   Spots/                         — ISpot / Spot / ISpotSet / SpotSet
-  Util/                          — SerialStream, NightLightDetection, FakeSerialPort, etc.
+  Util/                          — SerialStream, TcpControlServer, NightLightDetection, FakeSerialPort, etc.
   ValidationRules/               — WPF validation
   View/                          — XAML views + SettingsWindowComponents
   ViewModel/                     — SettingsViewModel, ViewModelLocator
@@ -34,9 +36,84 @@ adrilight.Tests/
   UserSettingsManagerTests.cs    — Settings save/load/migrate (3 tests)
 ```
 
+### Running tests
+```
+dotnet test adrilight.Tests/adrilight.Tests.csproj
+```
+
 ---
 
-## Change History
+## Changes from Original fabsenet v2.0.9
+
+### Platform Migration
+- Migrated from .NET Framework 4.7.2 to .NET 8.0 (`net8.0-windows`)
+- Converted legacy XML-style `.csproj` to modern SDK-style format
+- Replaced `packages.config` NuGet with `PackageReference`
+- Forced SharpDX to use net45 DLL variants via direct HintPath references (SharpDX 4.2.0 netstandard build is missing `AcquireNextFrame`)
+- Added `win-x64` RuntimeIdentifier
+
+### Dependencies
+- Replaced MvvmLight (GalaSoft) with **CommunityToolkit.Mvvm 8.3.2** — `ViewModelBase` → `ObservableObject`, `Set()` → `SetProperty()`, `RaisePropertyChanged()` → `OnPropertyChanged()`
+- Replaced `System.Windows.Interactivity` with **Microsoft.Xaml.Behaviors.Wpf**
+- Updated **MaterialDesignThemes** from 2.x to 4.9.0 and **MaterialDesignColors** to 2.1.4
+- Updated all other packages to current .NET 8 compatible versions
+- **Removed Squirrel auto-updater entirely** (source of antivirus false positives)
+- Added `System.IO.Ports` NuGet package (moved out of .NET Framework BCL)
+- Updated MoreLinq to 3.4.0
+
+### Breaking Change Fixes
+- `System.Windows.Forms.ContextMenu` / `MenuItem` → `ContextMenuStrip` / `ToolStripMenuItem`
+- `SpotSet.TakeLast()` ambiguity with MoreLinq resolved using explicit `Enumerable.TakeLast()`
+- `OutputDuplication.AcquireNextFrame()` — changed to pre-declare `OutputDuplicateFrameInformation frameInformation` before call
+- Removed `AdrilightUpdater.cs` (depended on Squirrel and Semver)
+- Icon loading changed from embedded manifest resource to file copy (`CopyToOutputDirectory: PreserveNewest`)
+- Fixed `Process.Start(url)` → `Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })`
+- Added `AssemblyVersion` and `AssemblyFileVersion` 2.1.0 to `AssemblyInfo.cs`
+- Set `GenerateAssemblyInfo=false` to prevent conflict with existing `AssemblyInfo.cs`
+
+### MaterialDesign v4 Compatibility
+- `ColorZoneMode.Accent` → `PrimaryMid` in `SettingsWindow.xaml`
+- `{StaticResource SecondaryAccentBrush}` → `{DynamicResource MaterialDesignSecondaryLightBrush}` in `Preview.xaml`, `Whitebalance.xaml`, `LedSetup.xaml`
+- `MaterialDesignSwitchAccentToggleButton` → `MaterialDesignSwitchToggleButton` in `LedSetup.xaml`, `GeneralSetup.xaml`, `ComPortSetup.xaml`
+- Removed WhatsNew browser-based page, replaced with static About page showing version and change history
+- `WhatsNewSetupSelectableViewPart` moved from nested class to standalone file `WhatsNewSelectableViewPart.cs`
+
+### New Features
+
+**TCP Control Server** (`adrilight/Util/TcpControlServer.cs`)
+- Listens on `127.0.0.1:5080` (loopback only)
+- Accepts plain-text commands, responds with JSON
+
+| Command | Effect | Response |
+|---|---|---|
+| `ON` | Sets `TransferActive = true` | `{"status":"on"}` |
+| `OFF` | Sets `TransferActive = false` | `{"status":"off"}` |
+| `TOGGLE` | Toggles current state | `{"status":"on/off"}` |
+| `STATUS` | Queries state | `{"status":"on/off"}` |
+| `EXIT` | Shuts the app down | `{"status":"exiting"}` |
+
+- Hooks directly into `UserSettings.TransferActive`
+- Started in `App.OnStartup`, stopped in `App.OnExit`
+
+**Session Lock / Unlock** (`App.xaml.cs`)
+- `SystemEvents.SessionSwitch` handler automatically sets `TransferActive = false` on lock and restores previous state on unlock
+
+**Screen Saver Detection** (`App.xaml.cs`)
+- `DispatcherTimer` polls every 5 seconds using `SystemParametersInfo(SPI_GETSCREENSAVERRUNNING)`
+- Automatically turns LEDs off when screen saver starts, restores state when it stops
+
+### Performance Improvements
+- Default `LimitFps` reduced from 60 to 30 in `UserSettings.cs`
+- `SerialStream.DoWork()` — `minTimespan` now calculated once per port open rather than every frame
+- `SerialStream.DoWork()` — removed unnecessary `GC.Collect()` from exception handler
+- `DesktopDuplicatorReader` — removed unnecessary `GC.Collect()` from `GetNextFrame()` exception handler
+- `DesktopDuplicatorReader` — `Parallel.ForEach` only used for spot counts ≥ 40; sequential loop used below threshold
+- `DesktopDuplicatorReader` — `ProcessSpot()` extracted as separate method
+- **Dirty Flag Optimisation** — `IsDirty` bool property added to `ISpotSet`, `SpotSet`, and `SpotSetFake`. Set to `true` by `DesktopDuplicatorReader` after each frame colour update. `SerialStream` only sends to the Arduino when `IsDirty` is `true`, then clears the flag — eliminates redundant serial writes when screen content is unchanged
+
+---
+
+## Session History
 
 ### 2026-03-16 — Dead code cleanup (branch: `cleanup/remove-dead-code`)
 
@@ -57,7 +134,7 @@ adrilight.Tests/
 
 **Bug fixes / code smell corrections:**
 - `SettingsViewModel`: removed dead `PropertyChanged` handler that assigned `name` but never used it
-- `SettingsViewModel`: `SpotsXMaximum` / `SpotsYMaximum` getters were mutating state (`_field = Math.Max(...)`) — moved the mutation into the `Settings.PropertyChanged` handler where the notifications already fire; getters now just return the backing field
+- `SettingsViewModel`: `SpotsXMaximum` / `SpotsYMaximum` getters were mutating state — moved mutation into `Settings.PropertyChanged` handler; getters now just return the backing field
 - `Spot`: removed empty `IDisposable` / `Dispose()` — `ISpot` does not require it
 - `SerialStream`: tightened bare `catch {}` to `catch (UnauthorizedAccessException)`
 
@@ -66,51 +143,40 @@ adrilight.Tests/
 - `NightLightDetection.cs` — stale `[VectorType(43)]` attribute
 
 **Boilerplate using cleanup:**
-- Stripped 12 unused template-generated `using` statements from all 7 `SettingsWindowComponents` codebehind files (`GeneralSetup`, `ComPortSetup`, `LedSetup`, `SpotSetup`, `LightingModeSetup`, `Whitebalance`, `Preview`)
+- Stripped unused template-generated `using` statements from all 7 `SettingsWindowComponents` codebehind files
 - Cleaned unused usings in `FakeSerialPort`, `NightLightDetection`, `StartupManager`, `UserSettingsFake`
 
-**Build result:** 0 warnings, 0 errors after all changes.
-
-**To revert:** `git checkout main`
+**Build result:** 0 warnings, 0 errors.
 
 ---
 
 ### 2026-03-16 — Test project migrated to .NET 8 (branch: `cleanup/remove-dead-code`)
 
-The test project (`adrilight.Tests`) was on the legacy `.NET 4.7.2` non-SDK format and could no longer run against the `.NET 8` main project.
+The test project (`adrilight.Tests`) was on legacy .NET 4.7.2 and could no longer run against the .NET 8 main project.
 
 **Changes:**
 - Rewrote `adrilight.Tests.csproj` as SDK-style targeting `net8.0-windows`
 - Updated packages: `MSTest.TestAdapter/Framework` → 3.6.1, `Moq` → 4.20.72, added `Microsoft.NET.Test.Sdk` 17.11.1
-- Deleted `app.config` (old assembly binding redirects, not needed in .NET 8), `packages.config`, `Properties/AssemblyInfo.cs` (auto-generated by SDK)
+- Deleted `app.config`, `packages.config`, `Properties/AssemblyInfo.cs`
 - Removed leftover commented-out debug block in `SpotsetTests.cs`
 
 **Test result:** 13/13 passed.
 
-**To run tests:** `dotnet test adrilight.Tests/adrilight.Tests.csproj`
-
 ---
 
-### Earlier changes (Perry Edition, v2.1.0)
+### 2026-03-16 — Rename Perry Edition → AbsenteeAtom Edition
 
-| Commit | Summary |
-|--------|---------|
-| `9906f0c` | Fix MaterialDesign v4 Accent compatibility across all XAML pages |
-| `a1f62a7` | Final v2.1.0 - Perry Edition |
-| `f664af7` | Add session lock and screen saver LED auto off/on |
-| `964c28d` | Auto-copy icon to output directory on build |
-| `6262534` | Add About page, fix StartMinimized, set version 2.1.0 |
-| `81b1468` | Add dirty flag optimisation, reduce unnecessary serial writes and GPU usage |
-| `b482434` | Performance improvements to SerialStream and DesktopDuplicatorReader |
-| `b0f3092` | Migrate to .NET 8, replace MvvmLight, add TCP control server on port 5080 |
+- Updated `WhatsNew.xaml` version string
+- Updated `CLAUDE.md`
 
 ---
 
 ## Development Notes
 
-- The app may start minimized to the system tray — check the tray if the window doesn't appear
-- `StartMinimized` is a user setting controlled from the General Setup tab
+- The app starts minimized to the system tray by default — check the tray if the window doesn't appear
+- `StartMinimized` is a user setting on the General Setup tab; the settings window always opens on first run or after a version change
 - Serial baud rate is hardcoded at `1,000,000` in `SerialStream.cs`
 - The ML model for Night Light detection is embedded as a resource (`Resources/NightLightDetectionModel.zip`)
-- SharpDX assemblies are referenced directly from the NuGet cache (not via PackageReference) — paths use `$(USERPROFILE)\.nuget\packages\sharpdx\...`
-- The TCP control server listens on port 5080
+- SharpDX assemblies are referenced directly from the NuGet cache via HintPath — not via PackageReference — because the netstandard build lacks `AcquireNextFrame`
+- The TCP control server listens on `127.0.0.1:5080`
+- To revert all cleanup changes to the pre-session state: `git checkout main`
