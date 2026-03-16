@@ -41,6 +41,13 @@ adrilight.Tests/
 dotnet test adrilight.Tests/adrilight.Tests.csproj
 ```
 
+### Building a local executable
+```
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.0.0
+```
+Output goes to `publish/adrilight-3.0.0/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
+The `publish/` folder is excluded from git via `.gitignore`.
+
 ---
 
 ## Changes from Original fabsenet v2.0.9
