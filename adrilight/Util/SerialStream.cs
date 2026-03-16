@@ -185,9 +185,9 @@ namespace adrilight
                             {
                                 serialPort.Open();
                             }
-                            catch
+                            catch (UnauthorizedAccessException)
                             {
-                                // useless UnauthorizedAccessException
+                                // port is in use or access denied — will retry on next loop
                             }
 
                             if (!serialPort.IsOpen)

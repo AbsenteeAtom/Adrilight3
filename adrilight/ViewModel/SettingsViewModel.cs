@@ -50,27 +50,19 @@ namespace adrilight.ViewModel
             PossibleLedCountsVertical = Enumerable.Range(10, 190).ToList();
             PossibleLedCountsHorizontal = Enumerable.Range(10, 290).ToList();
 
-            PropertyChanged += (s, e) =>
-            {
-                switch (e.PropertyName)
-                {
-                    case nameof(SelectedViewPart):
-                        var name = SelectedViewPart?.ViewPartName ?? "nothing";
-                        break;
-                }
-            };
-
             Settings.PropertyChanged += (s, e) =>
             {
                 switch (e.PropertyName)
                 {
                     case nameof(Settings.SpotsX):
+                        _spotsXMaximum = Math.Max(Settings.SpotsX, _spotsXMaximum);
                         OnPropertyChanged(nameof(SpotsXMaximum));
                         OnPropertyChanged(nameof(LedCount));
                         OnPropertyChanged(nameof(OffsetLedMaximum));
                         break;
 
                     case nameof(Settings.SpotsY):
+                        _spotsYMaximum = Math.Max(Settings.SpotsY, _spotsYMaximum);
                         OnPropertyChanged(nameof(SpotsYMaximum));
                         OnPropertyChanged(nameof(LedCount));
                         OnPropertyChanged(nameof(OffsetLedMaximum));
@@ -209,13 +201,13 @@ namespace adrilight.ViewModel
         private static void OpenUrl(string url) => Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
 
         private int _spotsXMaximum = 300;
-        public int SpotsXMaximum => _spotsXMaximum = Math.Max(Settings.SpotsX, _spotsXMaximum);
+        public int SpotsXMaximum => _spotsXMaximum;
 
         private int _spotsYMaximum = 300;
         private readonly ISpotSet spotSet;
         private readonly ISerialStream serialStream;
 
-        public int SpotsYMaximum => _spotsYMaximum = Math.Max(Settings.SpotsY, _spotsYMaximum);
+        public int SpotsYMaximum => _spotsYMaximum;
 
         public int OffsetLedMaximum => Math.Max(Settings.OffsetLed, LedCount);
 

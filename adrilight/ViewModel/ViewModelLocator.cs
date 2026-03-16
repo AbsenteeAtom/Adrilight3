@@ -19,10 +19,5 @@ namespace adrilight.ViewModel
         }
 
         public SettingsViewModel SettingsViewModel => kernel.Get<SettingsViewModel>();
-
-        public static void Cleanup()
-        {
-            // TODO Clear the ViewModels
-        }
     }
 }

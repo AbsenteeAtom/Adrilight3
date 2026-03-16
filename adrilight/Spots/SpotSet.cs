@@ -173,14 +173,6 @@ namespace adrilight
                 Mirror(spots, spotsX + spotsY - 2, spotsX);
         }
 
-        private static void Offset(ref ISpot[] spots, int offset)
-        {
-            spots = Enumerable.Concat(
-                Enumerable.TakeLast(spots, offset),
-                spots.Take(spots.Length - offset)
-            ).ToArray();
-        }
-
         public void IndicateMissingValues()
         {
             foreach (var spot in Spots)
