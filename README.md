@@ -1,112 +1,160 @@
-# No active development here!
-
-Hi, 
-I do no longer any active development on adrilight. I no longer have the same TV setup at home and I switched my HTPC from Windows to Linux Mint also.
-
-What you can do now:
-
-- fork the project and let it live on. The main branch is the last .net framework version, the dotnetcore branch contains a more recent version of the project based on dotnetcore but was never released.
-- take a look at way better ambilight clones like [Hyperion](https://hyperion-project.org)
-
-Good luck!
-
--------
--------
--------
--------
-
-# adrilight V2
+# adrilight
 
 ![adrilight logo](assets/adrilight_icon.jpg)
 
-> An Ambilight clone for Windows based sources - HTPC or just a normal PC
+> An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
+
+**adrilight 3.0.0 — AbsenteeAtom Edition**
+Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
+The original author retired the project; this fork modernises it for .NET 8 and adds new features.
+
+---
 
 ## What does it do?
 
-Adrilight lights up LEDs behind your screen or TV to step up the viewing experience to the next level.
+adrilight reads your Windows screen content using the Desktop Duplication API, calculates the average colour in each zone (spot) around the edge of the screen, and sends those colours to an Arduino over USB. The Arduino drives a WS2812b LED strip attached to the back of your monitor or TV:
 
-It reads the Windows screen content using the Windows Desktop Duplication API, infers the average color in each zone (=spot) and transfers these colors to an arduino via USB. The arduino then sends this color data to [WS2812b](https://amzn.to/2GUWwxg) (or compatible) LED strips which are around your screen/monitor:
+```
+PC (adrilight.exe)  →  Arduino (adrilight.ino)  →  WS2812b LED strip
+```
 
-> PC (adrilight.exe) => arduino (adrilight.ino) => LEDs
+---
 
-**New:** You have control over the white balance of the LEDs to match there color to your TV.
+## What's new in 3.0.0
 
-## What does it NOT do?
+Compared to the original fabsenet v2.0.9:
 
-This solution only analyzes image data from your windows screen. It cannot be used for your xbox or playstation or bluray player.
+- **.NET 8** — migrated from .NET Framework 4.7.2; faster startup, lower CPU and GPU usage
+- **TCP control server** — send `ON`, `OFF`, `TOGGLE`, `STATUS` or `EXIT` commands to `127.0.0.1:5080` from any local app or script
+- **Session lock / unlock** — LEDs turn off automatically when you lock Windows and back on when you unlock
+- **Screen saver detection** — LEDs turn off when the screen saver starts and restore when it stops
+- **Dirty flag optimisation** — serial data is only sent to the Arduino when screen colours have actually changed, eliminating redundant writes during static content
+- **Default 30 fps** — reduced from 60 fps; significantly lower GPU usage with no visible difference on LEDs
+- **Removed Squirrel auto-updater** — eliminated source of antivirus false positives
+- **MaterialDesignThemes 4.9.0** — updated from 2.x; modernised UI throughout
+- **CommunityToolkit.Mvvm** — replaced abandoned MvvmLight
+- **About page** — replaces the old browser-based What's New view with a static in-app page
 
-It cannot be used for normal television channels unless you are watching them through your PC. For example via Kodi and TVHeadend.
+---
 
-## Performance
+## Requirements
 
-On a typical PC, it will not use more than 10% CPU power in normal operations.
+**PC:**
+- Windows 10 or later (x64)
+- [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) (x64)
 
-On a typical hardware setup, it will be capable to reach 60fps on your LEDs. It is known to work with at least 228 LEDs.
+**Hardware:**
+- Arduino UNO or compatible
+- WS2812b LED strip (length to suit your screen)
+- 5V DC power supply — at least 1A per 50 LEDs
+- USB cable (Arduino to PC)
 
-## Installation
+---
 
-This should be improved but a quick rundown on what to do:
+## Hardware Setup
 
-* Buy
-  * Arduino UNO or compatible (on [Amazon.com](https://amzn.to/2JJddJI) or [Amazon.de](https://amzn.to/2H0VQT2))
-  * WS2812b (on [Amazon.com](https://amzn.to/2vczgVN) or [Amazon.de](https://amzn.to/2GUWwxg)) LED strip in the needed length
-  * ***5V*** DC power supply with enough power (on [Amazon.com](https://amzn.to/2ISVAuk) or [Amazon.de](https://amzn.to/2J8OJfA)) (you need at least 1A for every 50 LEDs)
-  * (optionally) dc jack connector (on [Amazon.com](https://amzn.to/2ISFgVX) or [Amazon.de](https://amzn.to/2GXePlq))
-  * Affiliate links: if you use these links to buy the hardware, you are directly supporting the development of adrilight!
-* Build
-  * Attach LED strip on the back of the television. The arrows must build a circle!
-    * The strip can be devided in 4 pieces: Left/Right/Top/Bottom
-    * Left and right as well as top and bottom must have the same number of LEDs each.
-  * solder the edges together, but DO NOT make a complete circle. The data line should still have an electrical start and end point
-  * depending on the length of the strip, solder more power wires in between
-  * connect power with the strip
-  * connect the arduino with the data in and ground from the strip
-* Software setup
-  * Download latest adrilight release
-    * [releases page](https://github.com/fabsenet/adrilight/releases)
-    * alternatively: clone the adrilight repo and build it yourself
-  * Arduino
-    * download arduino IDE
-    * add FastLED module
-    * configure the settings at the top of the script `adrilight.ino` (included in adrilight release)
-    * compile and upload the program to the arduino
-  * Adrilight setup on the HTPC
-    * setup and start adrilight
-    * Number of LEDs in arduino code **no longer differs** from the number of spots in the app! So simply enter the lengths of the horizontal and vertical strips
-    * change offset value until screen and the real LEDs align
-    * change com port and start sending. it should work now
-    * if it works, play around with the lighting mode, white balance and spot sizes as you wish
-* *enjoy ambient lighting!*
+1. Attach the LED strip to the back of your monitor or TV. The data arrows must form a continuous loop around the screen.
+2. Divide the strip into four sides: Top, Right, Bottom, Left — each side must have an equal number of LEDs on opposite sides (Top = Bottom count, Left = Right count).
+3. Solder corners together but **do not** close the data loop — it must have a clear start and end point.
+4. For longer strips, add additional power injection wires at intervals.
+5. Connect the strip's **Data In** and **Ground** to the Arduino.
+6. Connect the **5V power supply** to the strip (not through the Arduino).
 
-## Possible future features
+> ⚠️ Never power more than a small number of LEDs directly from the Arduino's 5V pin.
 
-The following list of things is more a list to not forget things. If something is on here, it does not necessarily mean, it will ever be developed.
+---
 
-* handling of letterboxed video (should not be confused by video containing partial black content for a bunch of seconds)
-* GUI translations
+## Software Setup
 
-You have another idea for a feature? Please create an issue.
+### 1. Arduino
 
-## Known limitations
+1. Open the Arduino IDE.
+2. Install the **FastLED** library (`Sketch → Include Library → Manage Libraries`).
+3. Open `Arduino/adrilight.ino` from this repository.
+4. Edit the constants at the top of the sketch to match your LED count and data pin.
+5. Upload to the Arduino.
 
-* Currently it is not supported to change the screen resolution after the start of adrilight (will be fixed)
-* Some apps can block their content and adrilight "sees" only a black window
-  * The windows store netflix app (player components are visible to adrilight but the actual video is not, netflix in the browser works)
-  * UAC asking for administrative approval (nothing is visible to adrilight)
-  * ...there is probably more
-* some arduino compatible devices have problems reaching the high baudrate of 1.000.000 Baud. This is a sad thing and cannot be changed because the high baud rate is absolutely needed to provide a fluent feeling. Using lower values is not supported. If this is your problem, the best thing is to get a better arduino clone.
+### 2. adrilight (PC)
 
-## Supporting the project
+1. Download the latest release or build from source (see below).
+2. Run `adrilight.exe` — it starts in the system tray.
+3. Double-click the tray icon (or right-click → Open) to open the settings window.
+4. **Serial Communication Setup** — select your Arduino's COM port and enable Transfer.
+5. **Physical LED Setup** — enter the number of LEDs across the top/bottom (`SpotsX`) and down each side (`SpotsY`).
+6. **Spot Detection Setup** — adjust border distance and spot size to match your screen.
+7. **Lighting Mode** — choose between normal and linear lighting.
+8. **White Balance** — tune the RGB balance of your LEDs.
+9. Adjust the `Offset LED` value until the colours on screen align with the correct physical LED positions.
 
-* A translated UI is in planning. If you can provide translations for languages other than English and German and a willing to help, please let us know.
-* To support the project with 💰 , you can buy the hardware (or whatever you like) through the affiliate links for [amazon.com](https://amzn.to/2HyZQLA) or [amazon.de](https://amzn.to/2qtOTDv)
+The app saves settings automatically. On next launch it starts in the system tray without opening the settings window (configurable in General Setup).
 
-## Thanks
+---
 
-* This is a fork from the originally ambilight clone project [bambilight by MrBoe](https://github.com/MrBoe/Bambilight) and therefore (and to met the MIT licence) a big thank you goes to [MrBoe](https://github.com/MrBoe)
-* More thanks goes to [jasonpong](https://github.com/jasonpang) for his [sample code for the Desktop Duplication API](https://github.com/jasonpang/desktop-duplication-net)
+## TCP Control Server
 
-## Changelog
+adrilight listens on `127.0.0.1:5080` for plain-text commands. This lets external applications (home automation, remote control software, scripts) control the LEDs without any UI interaction.
 
-See the [releases page](https://github.com/fabsenet/adrilight/releases) for some hints on the changes.
+Send a newline-terminated ASCII command; receive a JSON response:
 
+| Command  | Effect                              | Response               |
+|----------|-------------------------------------|------------------------|
+| `ON`     | Turn LEDs on                        | `{"status":"on"}`      |
+| `OFF`    | Turn LEDs off                       | `{"status":"off"}`     |
+| `TOGGLE` | Toggle current on/off state         | `{"status":"on/off"}`  |
+| `STATUS` | Query current state                 | `{"status":"on/off"}`  |
+| `EXIT`   | Gracefully shut down adrilight      | `{"status":"exiting"}` |
+
+**Example (PowerShell):**
+```powershell
+$client = New-Object System.Net.Sockets.TcpClient("127.0.0.1", 5080)
+$stream = $client.GetStream()
+$writer = New-Object System.IO.StreamWriter($stream)
+$reader = New-Object System.IO.StreamReader($stream)
+$writer.WriteLine("STATUS")
+$writer.Flush()
+$reader.ReadLine()   # returns {"status":"on"} or {"status":"off"}
+$client.Close()
+```
+
+---
+
+## Building from Source
+
+Requirements: [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (x64), Visual Studio 2022 or later (optional).
+
+```bash
+git clone <your-repo-url>
+cd adrilight
+dotnet build adrilight/adrilight.csproj --configuration Release
+```
+
+**Run tests:**
+```bash
+dotnet test adrilight.Tests/adrilight.Tests.csproj
+```
+
+---
+
+## Known Limitations
+
+- Screen resolution changes after launch are not detected automatically — restart adrilight if you change resolution.
+- Some applications block Desktop Duplication capture and will appear black:
+  - Netflix Windows Store app (browser-based Netflix works fine)
+  - UAC prompts
+  - Some DRM-protected content
+- Arduino clones that cannot reliably reach **1,000,000 baud** will not work. The high baud rate is required to achieve smooth LED updates and cannot be reduced.
+- Only the primary monitor is captured.
+
+---
+
+## Credits
+
+- [fabsenet/adrilight](https://github.com/fabsenet/adrilight) — original project (MIT), versions up to 2.0.9
+- [MrBoe/Bambilight](https://github.com/MrBoe/Bambilight) — the original ambilight clone adrilight was forked from
+- [jasonpang/desktop-duplication-net](https://github.com/jasonpang/desktop-duplication-net) — Desktop Duplication API sample code
+
+---
+
+## Licence
+
+[MIT](LICENSE) — original copyright © 2016 Fabian Wetzel.
