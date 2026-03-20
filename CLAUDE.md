@@ -208,6 +208,45 @@ The test project (`adrilight.Tests`) was on legacy .NET 4.7.2 and could no longe
 
 ---
 
+### 2026-03-20 — Arduino sketch improvements (`Arduino/adrilight/adrilight.ino`)
+
+**Bug fix:**
+- `last_serial_available` initialised to `-1L` — wraps to `ULONG_MAX` on `unsigned long`, causing incorrect timeout behaviour on first boot. Fixed to `0UL`.
+
+**Readability / efficiency:**
+- Separated postamble read from the LED loop — removed `NUM_LEDS+1` iteration; postamble is now an explicit read after the LED loop
+- Replaced manual LED copy loop with `memcpy(leds, ledsTemp, sizeof(leds))`
+- Inlined BGR→RGB conversion, removing three redundant local byte variables
+- Marked `PREAMBLE_LENGTH` as `const`
+- Added comment clarifying `UPDATES_PER_SECOND` applies to animation/fade modes only, not ambilight
+
+**Verified on hardware:** sketch compiled and uploaded successfully.
+- Flash: 6224 bytes (2% of 253952)
+- RAM: 3090 bytes (37% of 8192) — well within safe limits for current LED count
+
+**Rollback:** `git checkout HEAD~1 -- Arduino/adrilight/adrilight.ino`
+
+---
+
+### 2026-03-20 — README improvements
+
+- Added MIT / .NET 8 / Platform badges
+- Added Table of Contents
+- Replaced `<your-repo-url>` placeholder with actual GitHub clone URL
+- Expanded Arduino setup section to show constants users need to edit
+- Expanded hardware power warning and power injection note
+- Added publish command to build section
+- Pushed to both `main` and `cleanup/remove-dead-code`
+
+---
+
+### 2026-03-20 — Git identity updated
+
+- Local repo git config updated: `user.name = AbsenteeAtom`, `user.email = psbeau@gmail.com`
+- Applies to this repo only (not global)
+
+---
+
 ## Development Notes
 
 - The app starts minimized to the system tray by default — check the tray if the window doesn't appear
