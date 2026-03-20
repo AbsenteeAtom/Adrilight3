@@ -247,6 +247,22 @@ The test project (`adrilight.Tests`) was on legacy .NET 4.7.2 and could no longe
 
 ---
 
+### 2026-03-20 — Black bar detection: remap to nearest content edge
+
+**Behaviour change** (replaces "set bar LEDs to black"):
+
+LEDs whose spot rectangles fall entirely within a detected black bar are no longer turned off. Instead, `GetSamplingRectangle()` clamps the sampling rectangle to the nearest edge of the active content region, so those LEDs always reflect the closest real picture colour.
+
+**Files changed:**
+- `adrilight/DesktopDuplication/DesktopDuplicatorReader.cs`
+  - `ProcessSpot()`: removed early-return/black branch; now calls `GetSamplingRectangle()` and uses the result as the sampling rectangle throughout
+  - Added `internal static Rectangle GetSamplingRectangle(Rectangle spotRect, Rectangle activeRegion)` — clamps spot to nearest content edge; returns spot unchanged when `activeRegion.IsEmpty`
+- `adrilight.Tests/BlackBarDetectionTests.cs`
+  - Added 7 new `GetSamplingRectangle` tests covering: inside, above, below, left, right, empty active region, and partial overlap
+  - Total tests: 24/24 passing
+
+---
+
 ## Development Notes
 
 - The app starts minimized to the system tray by default — check the tray if the window doesn't appear

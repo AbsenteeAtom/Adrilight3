@@ -189,18 +189,14 @@ namespace adrilight
 
         private void ProcessSpot(ISpot spot, BitmapData bitmapData, bool useLinearLighting, bool isPreviewRunning, Rectangle activeRegion)
         {
-            // Spot falls entirely within a black bar — set LED to black without sampling
-            if (!spot.Rectangle.IntersectsWith(activeRegion))
-            {
-                spot.SetColor(0, 0, 0, isPreviewRunning);
-                return;
-            }
+            // Remap spot to nearest content edge when it falls in a black bar region
+            var samplingRect = GetSamplingRectangle(spot.Rectangle, activeRegion);
 
             const int numberOfSteps = 15;
-            int stepx = Math.Max(1, spot.Rectangle.Width / numberOfSteps);
-            int stepy = Math.Max(1, spot.Rectangle.Height / numberOfSteps);
+            int stepx = Math.Max(1, samplingRect.Width / numberOfSteps);
+            int stepy = Math.Max(1, samplingRect.Height / numberOfSteps);
 
-            GetAverageColorOfRectangularRegion(spot.Rectangle, stepy, stepx, bitmapData,
+            GetAverageColorOfRectangularRegion(samplingRect, stepy, stepx, bitmapData,
                 out int sumR, out int sumG, out int sumB, out int count);
 
             var countInverse = 1f / count;
@@ -330,6 +326,40 @@ namespace adrilight
                 }
                 count += stepCount;
             }
+        }
+
+        /// <summary>
+        /// Returns the rectangle that a spot should sample from.
+        /// If the spot overlaps the active content region the intersection is used.
+        /// If the spot is entirely outside (i.e. it sits over a black bar) the rectangle is
+        /// clamped to the nearest edge of the active region so the LED reflects the closest
+        /// real picture colour rather than sampling black pixels.
+        /// </summary>
+        internal static Rectangle GetSamplingRectangle(Rectangle spotRect, Rectangle activeRegion)
+        {
+            if (activeRegion.IsEmpty)
+                return spotRect;
+
+            int sampLeft   = Math.Max(spotRect.Left,   activeRegion.Left);
+            int sampRight  = Math.Min(spotRect.Right,  activeRegion.Right);
+            int sampTop    = Math.Max(spotRect.Top,    activeRegion.Top);
+            int sampBottom = Math.Min(spotRect.Bottom, activeRegion.Bottom);
+
+            // No horizontal overlap — clamp to nearest vertical edge of content
+            if (sampLeft >= sampRight)
+            {
+                sampLeft  = spotRect.Right <= activeRegion.Left ? activeRegion.Left : activeRegion.Right - 1;
+                sampRight = sampLeft + 1;
+            }
+
+            // No vertical overlap — clamp to nearest horizontal edge of content
+            if (sampTop >= sampBottom)
+            {
+                sampTop    = spotRect.Bottom <= activeRegion.Top ? activeRegion.Top : activeRegion.Bottom - 1;
+                sampBottom = sampTop + 1;
+            }
+
+            return new Rectangle(sampLeft, sampTop, sampRight - sampLeft, sampBottom - sampTop);
         }
 
         /// <summary>

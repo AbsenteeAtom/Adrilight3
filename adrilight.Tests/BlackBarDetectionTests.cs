@@ -140,5 +140,100 @@ namespace adrilight.Tests
                 bmp.UnlockBits(data);
             }
         }
+
+        // -----------------------------------------------------------------------
+        // GetSamplingRectangle tests
+        // -----------------------------------------------------------------------
+
+        [TestMethod]
+        public void GetSamplingRectangle_SpotInsideActiveRegion_ReturnsIntersection()
+        {
+            // Spot fully inside content area — sampling rect equals the spot
+            var active = new Rectangle(10, 20, 80, 40);  // x=10..90, y=20..60
+            var spot   = new Rectangle(30, 30, 20, 10);  // fully inside
+
+            var result = DesktopDuplicatorReader.GetSamplingRectangle(spot, active);
+
+            Assert.AreEqual(spot, result, "Spot inside active region should sample from itself");
+        }
+
+        [TestMethod]
+        public void GetSamplingRectangle_SpotAboveActiveRegion_ClampsToTopEdge()
+        {
+            // Letterbox scenario: spot is entirely above the content area
+            var active = new Rectangle(0, 20, 100, 40);  // content rows 20–60
+            var spot   = new Rectangle(10, 0, 20, 15);   // above content (rows 0–15)
+
+            var result = DesktopDuplicatorReader.GetSamplingRectangle(spot, active);
+
+            Assert.AreEqual(active.Top, result.Top,    "Should clamp to top edge of content");
+            Assert.AreEqual(active.Top + 1, result.Bottom, "Clamped row should be 1 pixel tall");
+            // Horizontal: spot overlaps active horizontally, so intersection kept
+            Assert.AreEqual(10, result.Left);
+            Assert.AreEqual(30, result.Right);
+        }
+
+        [TestMethod]
+        public void GetSamplingRectangle_SpotBelowActiveRegion_ClampsToBottomEdge()
+        {
+            // Spot is entirely below the content area
+            var active = new Rectangle(0, 20, 100, 40);  // content rows 20–60
+            var spot   = new Rectangle(10, 65, 20, 10);  // below content (rows 65–75)
+
+            var result = DesktopDuplicatorReader.GetSamplingRectangle(spot, active);
+
+            Assert.AreEqual(active.Bottom - 1, result.Top, "Should clamp to bottom edge of content");
+            Assert.AreEqual(active.Bottom,     result.Bottom);
+        }
+
+        [TestMethod]
+        public void GetSamplingRectangle_SpotLeftOfActiveRegion_ClampsToLeftEdge()
+        {
+            // Pillarbox scenario: spot is entirely to the left of content
+            var active = new Rectangle(20, 0, 60, 80);   // content cols 20–80
+            var spot   = new Rectangle(0, 10, 15, 20);   // left of content (cols 0–15)
+
+            var result = DesktopDuplicatorReader.GetSamplingRectangle(spot, active);
+
+            Assert.AreEqual(active.Left,     result.Left,  "Should clamp to left edge of content");
+            Assert.AreEqual(active.Left + 1, result.Right, "Clamped column should be 1 pixel wide");
+        }
+
+        [TestMethod]
+        public void GetSamplingRectangle_SpotRightOfActiveRegion_ClampsToRightEdge()
+        {
+            // Spot entirely to the right of content
+            var active = new Rectangle(20, 0, 60, 80);   // content cols 20–80
+            var spot   = new Rectangle(85, 10, 15, 20);  // right of content (cols 85–100)
+
+            var result = DesktopDuplicatorReader.GetSamplingRectangle(spot, active);
+
+            Assert.AreEqual(active.Right - 1, result.Left,  "Should clamp to right edge of content");
+            Assert.AreEqual(active.Right,     result.Right);
+        }
+
+        [TestMethod]
+        public void GetSamplingRectangle_EmptyActiveRegion_ReturnsSpotUnchanged()
+        {
+            // When active region is empty (full-black frame) sampling falls back to spot itself
+            var spot = new Rectangle(10, 10, 20, 20);
+
+            var result = DesktopDuplicatorReader.GetSamplingRectangle(spot, Rectangle.Empty);
+
+            Assert.AreEqual(spot, result, "Empty active region should return spot rectangle unchanged");
+        }
+
+        [TestMethod]
+        public void GetSamplingRectangle_SpotPartiallyOverlapsActiveRegion_ReturnsIntersection()
+        {
+            // Spot straddles the top bar boundary — overlapping part is sampled
+            var active = new Rectangle(0, 20, 100, 40);  // content rows 20–60
+            var spot   = new Rectangle(10, 15, 30, 20);  // rows 15–35, partially in content
+
+            var result = DesktopDuplicatorReader.GetSamplingRectangle(spot, active);
+
+            Assert.AreEqual(20, result.Top,    "Top of result should be content top (intersection)");
+            Assert.AreEqual(35, result.Bottom, "Bottom of result should be spot bottom (inside content)");
+        }
     }
 }
