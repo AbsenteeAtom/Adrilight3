@@ -32,10 +32,30 @@ namespace adrilight
             var json = File.ReadAllText(JsonFileNameAndPath);
 
             var settings = JsonConvert.DeserializeObject<UserSettings>(json);
+            ApplyMigrations(settings);
             settings.PropertyChanged += (_, __) => Save(settings);
 
             HandleAutostart(settings);
             return settings;
+        }
+
+        /// <summary>
+        /// Applies any pending config schema migrations based on ConfigFileVersion.
+        /// Each migration step increments ConfigFileVersion so it only runs once.
+        /// Add new migrations as additional if-blocks below — never change existing ones.
+        /// </summary>
+        public void ApplyMigrations(IUserSettings settings)
+        {
+            if (settings.ConfigFileVersion == 1)
+            {
+                // v1 → v2: SpotsY was over-counted by 2 in the old grid layout
+                settings.SpotsX = Math.Max(1, settings.SpotsX);
+                settings.SpotsY = Math.Max(1, settings.SpotsY - 2);
+                settings.ConfigFileVersion = 2;
+            }
+
+            // Add future migrations here:
+            // if (settings.ConfigFileVersion == 2) { ... settings.ConfigFileVersion = 3; }
         }
 
         public IUserSettings MigrateOrDefault()

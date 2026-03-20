@@ -40,6 +40,10 @@ namespace adrilight
 
         int LimitFps { get; set; }
 
+        // Serial baud rate — must match the Arduino sketch (default 1000000).
+        // Only change this if you recompile the Arduino sketch with a matching baud rate.
+        int BaudRate { get; set; }
+
         string AdrilightVersion { get; set; }
         AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get; set; }
     }

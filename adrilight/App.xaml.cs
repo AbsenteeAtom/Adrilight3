@@ -69,15 +69,7 @@ namespace adrilight
 
             var isNewVersion = VersionNumber != UserSettings.AdrilightVersion;
             if (!IsPrivateBuild && isNewVersion)
-            {
                 UserSettings.AdrilightVersion = VersionNumber;
-                if (UserSettings.ConfigFileVersion == 1)
-                {
-                    UserSettings.ConfigFileVersion = 2;
-                    UserSettings.SpotsX = Math.Max(1, UserSettings.SpotsX);
-                    UserSettings.SpotsY = Math.Max(1, UserSettings.SpotsY - 2);
-                }
-            }
 
             SetupNotifyIcon();
 

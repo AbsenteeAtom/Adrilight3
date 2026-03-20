@@ -67,6 +67,13 @@ namespace adrilight
         private readonly byte[] _messagePreamble = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09 };
         private readonly byte[] _messagePostamble = { 85, 204, 165 };
 
+        // Colour byte order sent to the Arduino is B, G, R — NOT R, G, B.
+        // FastLED on the Arduino interprets each 3-byte group as Blue, Green, Red.
+        // If you change this order you MUST update the Arduino sketch to match.
+        private const int ColourByteOrder_Blue  = 0;   // first byte  = Blue
+        private const int ColourByteOrder_Green = 1;   // second byte = Green
+        private const int ColourByteOrder_Red   = 2;   // third byte  = Red
+
         private Thread _workerThread;
         private CancellationTokenSource _cancellationTokenSource;
         private readonly Stopwatch _stopwatch = new Stopwatch();
@@ -111,6 +118,10 @@ namespace adrilight
             int counter = _messagePreamble.Length;
             lock (SpotSet.Lock)
             {
+                // Clear the dirty flag inside the lock so the clear and colour snapshot are atomic.
+                // DesktopDuplicatorReader also holds this lock when it updates colours and sets IsDirty,
+                // so there is no window between the snapshot and the clear where a new frame can be lost.
+                SpotSet.IsDirty = false;
                 const int colorsPerLed = 3;
                 int bufferLength = _messagePreamble.Length
                     + (SpotSet.Spots.Length * colorsPerLed)
@@ -126,9 +137,11 @@ namespace adrilight
                 {
                     if (!UserSettings.SendRandomColors)
                     {
-                        outputStream[counter++] = spot.Blue;
-                        outputStream[counter++] = spot.Green;
-                        outputStream[counter++] = spot.Red;
+                        // BGR order — must match Arduino sketch expectation (see ColourByteOrder constants above)
+                        outputStream[counter + ColourByteOrder_Blue]  = spot.Blue;
+                        outputStream[counter + ColourByteOrder_Green] = spot.Green;
+                        outputStream[counter + ColourByteOrder_Red]   = spot.Red;
+                        counter += 3;
 
                         allBlack = allBlack && spot.Red == 0 && spot.Green == 0 && spot.Blue == 0;
                     }
@@ -137,9 +150,11 @@ namespace adrilight
                         allBlack = false;
                         var n = frameCounter % 360;
                         var c = ColorUtil.FromAhsb(255, n, 1, 0.5f);
-                        outputStream[counter++] = c.B;
-                        outputStream[counter++] = c.G;
-                        outputStream[counter++] = c.R;
+                        // BGR order — must match Arduino sketch expectation (see ColourByteOrder constants above)
+                        outputStream[counter + ColourByteOrder_Blue]  = c.B;
+                        outputStream[counter + ColourByteOrder_Green] = c.G;
+                        outputStream[counter + ColourByteOrder_Red]   = c.R;
+                        counter += 3;
                     }
                 }
 
@@ -167,18 +182,18 @@ namespace adrilight
             {
                 try
                 {
-                    const int baudRate = 1000000;
                     string openedComPort = null;
+                    int openedBaudRate = 0;
                     int minTimespan = 16;
 
                     while (!cancellationToken.IsCancellationRequested)
                     {
-                        if (openedComPort != UserSettings.ComPort)
+                        if (openedComPort != UserSettings.ComPort || openedBaudRate != UserSettings.BaudRate)
                         {
                             serialPort?.Close();
 
                             serialPort = UserSettings.ComPort != "Fake Port"
-                                ? (ISerialPortWrapper)new WrappedSerialPort(new SerialPort(UserSettings.ComPort, baudRate))
+                                ? (ISerialPortWrapper)new WrappedSerialPort(new SerialPort(UserSettings.ComPort, UserSettings.BaudRate))
                                 : new FakeSerialPort();
 
                             try
@@ -198,18 +213,18 @@ namespace adrilight
                             }
 
                             openedComPort = UserSettings.ComPort;
+                            openedBaudRate = UserSettings.BaudRate;
 
                             var spotCount = SpotSet.Spots.Length;
                             const int colorsPerLed = 3;
                             var streamLength = _messagePreamble.Length + spotCount * colorsPerLed + _messagePostamble.Length;
                             var fastLedTime = spotCount * 0.030d;
-                            var serialTransferTime = streamLength * 10.0 * 1000.0 / baudRate;
+                            var serialTransferTime = streamLength * 10.0 * 1000.0 / UserSettings.BaudRate;
                             minTimespan = (int)(fastLedTime + serialTransferTime) + 1;
                         }
 
                         if (SpotSet.IsDirty)
                         {
-                            SpotSet.IsDirty = false;
                             var (outputBuffer, streamLength2) = GetOutputStream();
                             serialPort.Write(outputBuffer, 0, streamLength2);
                             ArrayPool<byte>.Shared.Return(outputBuffer);

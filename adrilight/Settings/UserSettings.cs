@@ -35,6 +35,7 @@ namespace adrilight
 
         private bool _sendRandomColors = false;
         private int _limitFps = 60;
+        private int _baudRate = 1000000;
         private int _configFileVersion = 2;
         private AlternateWhiteBalanceModeEnum _alternateWhiteBalanceMode = AlternateWhiteBalanceModeEnum.Off;
 
@@ -64,6 +65,7 @@ namespace adrilight
         public byte AltWhitebalanceGreen { get => _altWhitebalanceGreen; set => SetProperty(ref _altWhitebalanceGreen, value); }
         public byte AltWhitebalanceBlue { get => _altWhitebalanceBlue; set => SetProperty(ref _altWhitebalanceBlue, value); }
         public bool SendRandomColors { get => _sendRandomColors; set => SetProperty(ref _sendRandomColors, value); }
+        public int BaudRate { get => _baudRate; set => SetProperty(ref _baudRate, value); }
         public Guid InstallationId { get; set; } = Guid.NewGuid();
         public AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get => _alternateWhiteBalanceMode; set => SetProperty(ref _alternateWhiteBalanceMode, value); }
     }
