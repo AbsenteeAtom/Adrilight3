@@ -8,7 +8,7 @@
 // NO CHANGE REQUIRED BELOW THIS LINE
 // --------------------------------------------------------------------------------------------
 
-#define UPDATES_PER_SECOND 60
+#define UPDATES_PER_SECOND 60  // animation and fade speed only — ambilight mode is paced by serial data
 #define TIMEOUT 3000
 #define MODE_ANIMATION 0
 #define MODE_AMBILIGHT 1
@@ -17,10 +17,10 @@ uint8_t mode = MODE_ANIMATION;
 
 uint8_t currentBrightness = BRIGHTNESS;
 byte MESSAGE_PREAMBLE[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09 };
-uint8_t PREAMBLE_LENGTH = 10;
+const uint8_t PREAMBLE_LENGTH = 10;
 uint8_t current_preamble_position = 0;
 
-unsigned long last_serial_available = -1L;
+unsigned long last_serial_available = 0UL;
 
 CRGB leds[NUM_LEDS];
 CRGB ledsTemp[NUM_LEDS];
@@ -60,50 +60,31 @@ void processIncomingData()
 {
   if (waitForPreamble(TIMEOUT))
   {
-    for (int ledNum = 0; ledNum < NUM_LEDS+1; ledNum++)
+    // Read LED colour data — 3 bytes per LED (sent as BGR)
+    for (int ledNum = 0; ledNum < NUM_LEDS; ledNum++)
     {
-      //we always have to read 3 bytes (RGB!)
-      //if it is less, we ignore this frame and wait for the next preamble
       if (Serial.readBytes((char*)buffer, 3) < 3) return;
+      ledsTemp[ledNum] = CRGB(buffer[2], buffer[1], buffer[0]);
+    }
 
+    // Read postamble — a closing 3-byte marker; only update LEDs if it matches
+    if (Serial.readBytes((char*)buffer, 3) < 3) return;
+    if (buffer[0] == 85 && buffer[1] == 204 && buffer[2] == 165)
+    {
+      memcpy(leds, ledsTemp, sizeof(leds));
 
-      if(ledNum < NUM_LEDS)
-      {          
-        byte blue = buffer[0];
-        byte green = buffer[1];
-        byte red = buffer[2];
-        ledsTemp[ledNum] = CRGB(red, green, blue);
-      }
-      else if (ledNum == NUM_LEDS)
+      if (currentBrightness < BRIGHTNESS)
       {
-        //this must be the "postamble" 
-        //this last "color" is actually a closing preamble
-        //if the postamble does not match the expected values, the colors will not be shown
-        if(buffer[0] == 85 && buffer[1] == 204 && buffer[2] == 165) {
-          //the preamble is correct, update the leds!     
-
-          // TODO: can we flip the used buffer instead of copying the data?
-          for (int ledNum = 0; ledNum < NUM_LEDS; ledNum++)
-          {
-            leds[ledNum]=ledsTemp[ledNum];
-          }
-      
-          if (currentBrightness < BRIGHTNESS)
-          {
-            currentBrightness++;
-            FastLED.setBrightness(currentBrightness);
-          }
-          
-          //send LED data to actual LEDs
-          FastLED.show();
-        }
+        currentBrightness++;
+        FastLED.setBrightness(currentBrightness);
       }
+
+      FastLED.show();
     }
   }
   else
   {
-    //if we get here, there must have been data before(so the user already knows, it works!)
-    //simply go to black!
+    // Timeout waiting for preamble — go dark
     mode = MODE_BLACK;
   }
 }
