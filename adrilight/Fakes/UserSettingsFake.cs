@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using adrilight.Settings;
 
 namespace adrilight.Fakes
@@ -15,13 +11,9 @@ namespace adrilight.Fakes
         public int BorderDistanceX { get; set; } = 33;
         public int BorderDistanceY { get; set; } = 44;
         public string ComPort { get; set; } = "COM7";
-        public DateTime? LastUpdateCheck { get; set; } = DateTime.Now;
-        public int LedsPerSpot { get; set; } = 1;
         public bool MirrorX { get; set; } = true;
         public bool MirrorY { get; set; } = false;
         public int OffsetLed { get; set; } = 22;
-        public int OffsetX { get; set; } = 0;
-        public int OffsetY { get; set; } = 0;
         public bool IsPreviewEnabled { get; set; } = false;
         public byte SaturationTreshold { get; set; } = 4;
         public int SpotsX { get; set; } = 80;
@@ -44,7 +36,7 @@ namespace adrilight.Fakes
 
         public bool SendRandomColors { get; set; }
         public int LimitFps { get; set; } = 60;
-        public string AdrilightVersion { get; set; } = "2.0.6";
+        public string AdrilightVersion { get; set; } = "3.0.0";
 
         public AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get; set; } = AlternateWhiteBalanceModeEnum.Off;
 #pragma warning disable CS0067

@@ -223,7 +223,7 @@
                         This mode tries to detect the actual night light mode of Windows to switch automatically 
                         the mode at the same time. Consider this mode as <Span Foreground="#FFFD7474">experimental</Span>. 
                         <LineBreak/>
-                        <Hyperlink Command="{Binding OpenNightlightMdPageCommand}" Foreground="#FF84C1FF">
+                        <Hyperlink Command="{Binding OpenNightlightMdPageCommand}" Foreground="{DynamicResource PrimaryHueMidBrush}">
                             Learn how it works and how to report errors
                         </Hyperlink>
                     </TextBlock>

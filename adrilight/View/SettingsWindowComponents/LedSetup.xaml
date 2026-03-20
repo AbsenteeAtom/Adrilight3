@@ -106,8 +106,7 @@
                 <StackPanel Grid.Row="1" Margin="8 24 8 8" >
                     <DockPanel>
                         <TextBlock FontWeight="Bold">Complete LED Count</TextBlock>
-                        <TextBlock FontWeight="Bold" Text="{Binding LedCount}" 
-                               Foreground="{DynamicResource MaterialDesignSecondaryLightBrush}"
+                        <TextBlock FontWeight="Bold" Text="{Binding LedCount}"
                                DockPanel.Dock="Right"
                                TextWrapping="Wrap" HorizontalAlignment="Right" />
                     </DockPanel>

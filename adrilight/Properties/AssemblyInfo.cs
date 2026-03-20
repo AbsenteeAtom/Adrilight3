@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 // die mit einer Assembly verknüpft sind.
 [assembly: AssemblyTitle("adrilight")]
 [assembly: AssemblyDescription("An Ambilight clone for Windows based sources - HTPC or just a normal PC")]
-[assembly: AssemblyCompany("fabsenet")]
+[assembly: AssemblyCompany("AbsenteeAtom")]
 [assembly: AssemblyProduct("adrilight")]
 [assembly: AssemblyCopyright("MIT Licence")]
 [assembly: AssemblyTrademark("")]
@@ -32,7 +32,7 @@ using System.Runtime.InteropServices;
 // übernehmen, indem Sie "*" eingeben:
 // [assembly: AssemblyVersion("1.0.*")]
 
-[assembly: AssemblyVersion("2.1.0")]
-[assembly: AssemblyFileVersion("2.1.0")]
+[assembly: AssemblyVersion("3.0.0")]
+[assembly: AssemblyFileVersion("3.0.0")]
 
 [assembly: InternalsVisibleTo("adrilight.Tests")]

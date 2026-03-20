@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using adrilight.Extensions;
@@ -214,11 +213,7 @@ namespace adrilight.Tests
             Assert.AreEqual((0, 2), items[22], "item 22");
             Assert.AreEqual((0, 1), items[23], "item 23");
 
-            //for (int i = 0; i < items.Count; i++)
-            //{
-            //    var item = items[i];
-            //    Debug.WriteLine($"Assert.AreEqual(({item.x}, {item.y}), items[{i}], \"item {i}\");");
-            //}
+
         }
     }
 }

@@ -8,7 +8,7 @@ using Color = System.Windows.Media.Color;
 namespace adrilight
 {
     [DebuggerDisplay("Spot: Rectangle={Rectangle}, Color={Red},{Green},{Blue}")]
-    sealed class Spot : ObservableObject, IDisposable, ISpot
+    sealed class Spot : ObservableObject, ISpot
     {
         public Spot(int top, int left, int width, int height)
         {
@@ -44,8 +44,6 @@ namespace adrilight
                 OnPropertyChanged(nameof(OnDemandColorTransparent));
             }
         }
-
-        public void Dispose() { }
 
         private DateTime? _lastMissingValueIndication;
         private readonly double _dimToBlackIntervalInMs = TimeSpan.FromMilliseconds(10000).TotalMilliseconds;

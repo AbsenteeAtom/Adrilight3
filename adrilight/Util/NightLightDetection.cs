@@ -2,10 +2,8 @@
 using Microsoft.Win32;
 using NLog;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.ML;
@@ -166,7 +164,6 @@ namespace adrilight.Util
     {
         public bool IsActive { get; }
 
-        //  [Microsoft.ML.Data.VectorType(43)]
         public byte[] Data { get; }
 
         [Microsoft.ML.Data.VectorType(35)]

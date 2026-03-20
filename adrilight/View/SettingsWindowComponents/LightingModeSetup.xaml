@@ -73,7 +73,7 @@
 	                              Style="{StaticResource MaterialDesignSwitchToggleButton}"
 	                              ToolTip="Non-Linear Fading" />
                 </StackPanel>
-                <materialDesign:PackIcon Kind="Heart" Width="24" Height="24" Foreground="{StaticResource PrimaryHueLightBrush}" Margin="292,8,0,0" RenderTransformOrigin="0.5,0.5" >
+                <materialDesign:PackIcon Kind="Heart" Width="24" Height="24" Foreground="{DynamicResource PrimaryHueLightBrush}" Margin="292,8,0,0" RenderTransformOrigin="0.5,0.5" >
                     <materialDesign:PackIcon.RenderTransform>
                         <TransformGroup>
                             <ScaleTransform/>

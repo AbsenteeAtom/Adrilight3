@@ -1,11 +1,4 @@
 ﻿using NLog;
-using System;
-using System.Collections.Generic;
-using System.IO.Ports;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace adrilight.Util
 {
@@ -26,7 +19,6 @@ namespace adrilight.Util
 
         public void Write(byte[] outputBuffer, int v, int streamLength)
         {
-            //_log.Warn($"Faking writing of {streamLength} bytes to the serial port");
             fpsLogger.TrackSingleFrame();
         }
     }
