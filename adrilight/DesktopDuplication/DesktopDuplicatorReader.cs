@@ -132,6 +132,11 @@ namespace adrilight
 
                     image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppRgb, bitmapData);
 
+                    // Detect black bars once per frame — result is reused across all spot samples
+                    var activeRegion = UserSettings.BlackBarDetectionEnabled
+                        ? DetectBlackBars(bitmapData, image.Width, image.Height, UserSettings.BlackBarLuminanceThreshold)
+                        : new Rectangle(0, 0, image.Width, image.Height);
+
                     lock (SpotSet.Lock)
                     {
                         var useLinearLighting = UserSettings.UseLinearLighting;
@@ -147,14 +152,14 @@ namespace adrilight
                         {
                             Parallel.ForEach(SpotSet.Spots, spot =>
                             {
-                                ProcessSpot(spot, bitmapData, useLinearLighting, isPreviewRunning);
+                                ProcessSpot(spot, bitmapData, useLinearLighting, isPreviewRunning, activeRegion);
                             });
                         }
                         else
                         {
                             foreach (var spot in SpotSet.Spots)
                             {
-                                ProcessSpot(spot, bitmapData, useLinearLighting, isPreviewRunning);
+                                ProcessSpot(spot, bitmapData, useLinearLighting, isPreviewRunning, activeRegion);
                             }
                         }
 
@@ -182,8 +187,15 @@ namespace adrilight
             }
         }
 
-        private void ProcessSpot(ISpot spot, BitmapData bitmapData, bool useLinearLighting, bool isPreviewRunning)
+        private void ProcessSpot(ISpot spot, BitmapData bitmapData, bool useLinearLighting, bool isPreviewRunning, Rectangle activeRegion)
         {
+            // Spot falls entirely within a black bar — set LED to black without sampling
+            if (!spot.Rectangle.IntersectsWith(activeRegion))
+            {
+                spot.SetColor(0, 0, 0, isPreviewRunning);
+                return;
+            }
+
             const int numberOfSteps = 15;
             int stepx = Math.Max(1, spot.Rectangle.Width / numberOfSteps);
             int stepy = Math.Max(1, spot.Rectangle.Height / numberOfSteps);
@@ -318,6 +330,94 @@ namespace adrilight
                 }
                 count += stepCount;
             }
+        }
+
+        /// <summary>
+        /// Scans the frame from each edge inward to find the active (non-black-bar) region.
+        /// Sampling is sparse (5 points per row/column) so the cost is O(width + height), not O(width * height).
+        /// Returns Rectangle.Empty if the entire frame is below the luminance threshold.
+        /// Returns the full-frame rectangle if no bars are detected.
+        /// </summary>
+        internal static Rectangle DetectBlackBars(BitmapData bitmapData, int width, int height, byte luminanceThreshold)
+        {
+            // Scan from top — find first row with content
+            int cropTop = -1;
+            for (int y = 0; y < height; y++)
+            {
+                if (!IsRowBlack(bitmapData, y, width, luminanceThreshold))
+                {
+                    cropTop = y;
+                    break;
+                }
+            }
+            if (cropTop < 0)
+                return Rectangle.Empty; // entire frame is black
+
+            // Scan from bottom — find last row with content
+            int cropBottom = height;
+            for (int y = height - 1; y >= cropTop; y--)
+            {
+                if (!IsRowBlack(bitmapData, y, width, luminanceThreshold))
+                {
+                    cropBottom = y + 1;
+                    break;
+                }
+            }
+
+            // Scan from left — find first column with content
+            int cropLeft = 0;
+            for (int x = 0; x < width; x++)
+            {
+                if (!IsColumnBlack(bitmapData, x, height, luminanceThreshold))
+                {
+                    cropLeft = x;
+                    break;
+                }
+            }
+
+            // Scan from right — find last column with content
+            int cropRight = width;
+            for (int x = width - 1; x >= cropLeft; x--)
+            {
+                if (!IsColumnBlack(bitmapData, x, height, luminanceThreshold))
+                {
+                    cropRight = x + 1;
+                    break;
+                }
+            }
+
+            return Rectangle.FromLTRB(cropLeft, cropTop, cropRight, cropBottom);
+        }
+
+        // A row is black if every sampled pixel has average luminance <= threshold.
+        // Samples 5 evenly-spaced pixels across the row for efficiency.
+        private static unsafe bool IsRowBlack(BitmapData bitmapData, int row, int width, byte threshold)
+        {
+            int stepX = Math.Max(1, width / 5);
+            byte* rowPtr = (byte*)bitmapData.Scan0 + bitmapData.Stride * row;
+            for (int x = 0; x < width; x += stepX)
+            {
+                byte* pixel = rowPtr + x * 4;
+                // Pixel layout is BGRA; luminance = (B + G + R) / 3
+                if ((pixel[0] + pixel[1] + pixel[2]) / 3 > threshold)
+                    return false;
+            }
+            return true;
+        }
+
+        // A column is black if every sampled pixel has average luminance <= threshold.
+        // Samples 5 evenly-spaced pixels down the column for efficiency.
+        private static unsafe bool IsColumnBlack(BitmapData bitmapData, int col, int height, byte threshold)
+        {
+            int stepY = Math.Max(1, height / 5);
+            byte* colBase = (byte*)bitmapData.Scan0 + col * 4;
+            for (int y = 0; y < height; y += stepY)
+            {
+                byte* pixel = colBase + bitmapData.Stride * y;
+                if ((pixel[0] + pixel[1] + pixel[2]) / 3 > threshold)
+                    return false;
+            }
+            return true;
         }
     }
 }
