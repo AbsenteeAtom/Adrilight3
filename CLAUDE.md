@@ -20,7 +20,7 @@ This is **adrilight 3.1.0 — AbsenteeAtom Edition**, forked from [fabsenet/adri
 ```
 adrilight/
   App.xaml / App.xaml.cs         — entry point, DI setup, session/screensaver hooks
-  DesktopDuplication/            — SharpDX screen capture
+  DesktopDuplication/            — SharpDX screen capture + colour sampling
   Extensions/                    — ArrayExtensions (Swap)
   Fakes/                         — Design-time fake implementations
   Settings/                      — IUserSettings interface + UserSettings impl
@@ -34,7 +34,10 @@ adrilight.Tests/
   SpotsetTests.cs                — BoundsWalker, BuildSpots, LED offset, mirroring (8 tests)
   DependencyInjectionTests.cs    — DI container setup, design-time and runtime (2 tests)
   UserSettingsManagerTests.cs    — Settings save/load/migrate (3 tests)
+  BlackBarDetectionTests.cs      — DetectBlackBars + GetSamplingRectangle (11 tests)
 ```
+
+Total tests: **24/24 passing**
 
 ### Running tests
 ```
@@ -47,6 +50,97 @@ dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o .
 ```
 Output goes to `publish/adrilight-3.1.0/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
 The `publish/` folder is excluded from git via `.gitignore`.
+
+---
+
+## Architecture — Capture Pipeline
+
+The main loop runs on a background thread (`DesktopDuplicatorReader`):
+
+```
+DesktopDuplicator.GetLatestFrame()        — DXGI Desktop Duplication, ~8× downscale via mipmap level 3
+    → Bitmap (locked as Format32bppRgb)
+    → DetectBlackBars()                   — sparse edge scan, O(width + height), returns activeRegion Rectangle
+    → foreach Spot (parallel if ≥40):
+        GetSamplingRectangle()            — clamps spot to nearest content edge if spot is in a black bar
+        GetAverageColorOfRectangularRegion() — unsafe pointer walk, 15-step grid sample
+        ApplyColorCorrections()           — saturation threshold, white balance, linear/non-linear gamma
+        spot.SetColor()                   — stores RGB + marks spot dirty
+    → SpotSet.IsDirty = true
+    → Thread.Sleep to enforce LimitFps
+```
+
+`SerialStream` runs a separate background thread:
+```
+while running:
+    if SpotSet.IsDirty:                   — dirty flag checked under SpotSet.Lock
+        SpotSet.IsDirty = false           — cleared atomically with snapshot (inside the same lock)
+        send preamble + BGR bytes + postamble over serial port
+    else:
+        Thread.Sleep(minTimespan)         — sleep calculated once per port open
+```
+
+### Key design points
+- **BGR byte order** — Arduino/FastLED uses BGR not RGB. Named constants in `SerialStream.cs` document this:
+  ```csharp
+  private const int ColourByteOrder_Blue  = 0;
+  private const int ColourByteOrder_Green = 1;
+  private const int ColourByteOrder_Red   = 2;
+  ```
+- **IsDirty cleared inside lock** — `SpotSet.IsDirty = false` is set inside `lock(SpotSet.Lock)` before reading spot colours, ensuring the flag is always cleared atomically with the colour snapshot. A frame cannot be missed.
+- **Baud rate in UserSettings** — `UserSettings.BaudRate` (default 1,000,000) is read by `SerialStream`. If the user changes it the port is reopened. Arduino sketch must be flashed to match.
+- **Version migration in UserSettingsManager** — `ApplyMigrations()` is called after settings deserialization. Migration v1→v2: `SpotsY -= 2`, `ConfigFileVersion = 2`. Future migrations go here, not in `App.xaml.cs`.
+
+---
+
+## Black Bar Detection (v3.1.0)
+
+### Detection — `DetectBlackBars()`
+Called once per frame after `LockBits`. Scans from each edge inward using `IsRowBlack` / `IsColumnBlack` (5 evenly-spaced pixel samples per row/column). Returns:
+- `Rectangle.Empty` — entire frame is below luminance threshold (fully black)
+- Full-frame rectangle — no bars detected
+- Cropped rectangle — the active (non-black) content region
+
+Controlled by `UserSettings.BlackBarDetectionEnabled` and `UserSettings.BlackBarLuminanceThreshold` (default 20).
+
+### Remapping — `GetSamplingRectangle()`
+Rather than turning bar LEDs off, spots whose rectangles fall in a black bar region are remapped to sample the nearest content edge:
+
+```csharp
+internal static Rectangle GetSamplingRectangle(Rectangle spotRect, Rectangle activeRegion)
+```
+
+- Spot overlaps content → returns the intersection (normal case)
+- Spot above content → clamps to topmost content row
+- Spot below content → clamps to bottommost content row
+- Spot left of content → clamps to leftmost content column
+- Spot right of content → clamps to rightmost content column
+- `activeRegion.IsEmpty` → returns `spotRect` unchanged (fully black frame fallback)
+
+This means **all LEDs remain active at all times**, reflecting the closest real picture colour.
+
+### `ProcessSpot()` flow
+```csharp
+var samplingRect = GetSamplingRectangle(spot.Rectangle, activeRegion);
+// stepx/stepy derived from samplingRect dimensions
+GetAverageColorOfRectangularRegion(samplingRect, ...);
+```
+
+---
+
+## Four Architecture Refactoring Fixes (applied before v3.1.0 feature work)
+
+### 1 — BGR colour order documented
+`SerialStream.cs` had silent BGR→RGB conversion with no comments. Added named constants and in-line comments at both write sites so future maintainers cannot accidentally introduce RGB writes.
+
+### 2 — Baud rate moved to `IUserSettings`
+Previously hardcoded as a local `const` in `SerialStream.DoWork()`. Now stored in `UserSettings.BaudRate` (default 1,000,000) so it can be changed without a rebuild. `SerialStream` tracks `openedBaudRate` and reopens the port when the value changes.
+
+### 3 — `IsDirty` flag cleared atomically
+Previously `IsDirty = false` was set *outside* the `SpotSet.Lock` after reading spot colours. This created a race window where a new frame could set the flag between the read and the clear, causing that frame to be skipped. Fixed by moving the clear *inside* the lock, before the colour read.
+
+### 4 — Version migration moved to `UserSettingsManager`
+Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside startup code. Extracted into `UserSettingsManager.ApplyMigrations(IUserSettings settings)`, called from `LoadIfExists()` after deserialization. Future migrations go in the same method as a clear chain of `if (ConfigFileVersion == N)` blocks.
 
 ---
 
@@ -75,7 +169,7 @@ The `publish/` folder is excluded from git via `.gitignore`.
 - Removed `AdrilightUpdater.cs` (depended on Squirrel and Semver)
 - Icon loading changed from embedded manifest resource to file copy (`CopyToOutputDirectory: PreserveNewest`)
 - Fixed `Process.Start(url)` → `Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })`
-- Added `AssemblyVersion` and `AssemblyFileVersion` to `AssemblyInfo.cs` (now 3.0.0)
+- Added `AssemblyVersion` and `AssemblyFileVersion` to `AssemblyInfo.cs`
 - Set `GenerateAssemblyInfo=false` to prevent conflict with existing `AssemblyInfo.cs`
 
 ### MaterialDesign v4 Compatibility
@@ -99,7 +193,6 @@ The `publish/` folder is excluded from git via `.gitignore`.
 | `STATUS` | Queries state | `{"status":"on/off"}` |
 | `EXIT` | Shuts the app down | `{"status":"exiting"}` |
 
-- Hooks directly into `UserSettings.TransferActive`
 - Started in `App.OnStartup`, stopped in `App.OnExit`
 
 **Session Lock / Unlock** (`App.xaml.cs`)
@@ -109,6 +202,8 @@ The `publish/` folder is excluded from git via `.gitignore`.
 - `DispatcherTimer` polls every 5 seconds using `SystemParametersInfo(SPI_GETSCREENSAVERRUNNING)`
 - Automatically turns LEDs off when screen saver starts, restores state when it stops
 
+**Black Bar Detection** (`DesktopDuplicatorReader.cs`) — see dedicated section above
+
 ### Performance Improvements
 - Default `LimitFps` reduced from 60 to 30 in `UserSettings.cs`
 - `SerialStream.DoWork()` — `minTimespan` now calculated once per port open rather than every frame
@@ -116,150 +211,41 @@ The `publish/` folder is excluded from git via `.gitignore`.
 - `DesktopDuplicatorReader` — removed unnecessary `GC.Collect()` from `GetNextFrame()` exception handler
 - `DesktopDuplicatorReader` — `Parallel.ForEach` only used for spot counts ≥ 40; sequential loop used below threshold
 - `DesktopDuplicatorReader` — `ProcessSpot()` extracted as separate method
-- **Dirty Flag Optimisation** — `IsDirty` bool property added to `ISpotSet`, `SpotSet`, and `SpotSetFake`. Set to `true` by `DesktopDuplicatorReader` after each frame colour update. `SerialStream` only sends to the Arduino when `IsDirty` is `true`, then clears the flag — eliminates redundant serial writes when screen content is unchanged
+- **Dirty Flag Optimisation** — `IsDirty` bool on `ISpotSet`/`SpotSet`. Set by `DesktopDuplicatorReader` after each frame. `SerialStream` only writes to Arduino when `IsDirty` is `true`, then clears it — eliminates redundant serial writes during static content
 
 ---
 
 ## Session History
 
-### 2026-03-16 — Dead code cleanup (branch: `cleanup/remove-dead-code`)
+### 2026-03-16 — Dead code cleanup + test migration to .NET 8
+- Deleted 3 unused files (`TraceFrameMessage.cs`, `MovedRegion.cs`, `MathExtensions.cs`)
+- Removed 5 unused methods, stale `UserSettingsFake` properties, dead PropertyChanged handler
+- Fixed `SpotsXMaximum`/`SpotsYMaximum` getter mutation bug in `SettingsViewModel`
+- Tightened bare `catch {}` to `catch (UnauthorizedAccessException)` in `SerialStream`
+- Migrated `adrilight.Tests` from .NET 4.7.2 to `net8.0-windows`; 13/13 tests passing
 
-**Deleted files (fully unused):**
-- `Messaging/TraceFrameMessage.cs` — unused struct, leftover from old implementation
-- `DesktopDuplication/MovedRegion.cs` — unused struct, never instantiated
-- `Extensions/MathExtensions.cs` — contained only `Clamp<T>()`, never called anywhere
+### 2026-03-16 — Branding, version, README
+- Renamed Perry Edition → AbsenteeAtom Edition; bumped version 2.1.0 → 3.0.0
+- `README.md` fully rewritten — badges, TOC, hardware setup, TCP API table, build instructions
+- About page (`WhatsNew.xaml`) restructured with description, credits, and change sections
 
-**Removed unused methods:**
-- `SpotSet.Offset()` — duplicated logic already inlined in `BuildSpots()`
-- `StartUpManager.AddApplicationToAllUserStartup()` — only CurrentUser variants are used
-- `StartUpManager.RemoveApplicationFromAllUserStartup()` — same
-- `StartUpManager.IsUserAdministrator()` — never called
-- `ViewModelLocator.Cleanup()` — was an empty TODO stub
+### 2026-03-16 — XAML theme fixes
+- `LedSetup.xaml`: removed explicit foreground that resolved to black
+- `LightingModeSetup.xaml`: `StaticResource` → `DynamicResource` for theme brush
+- `Whitebalance.xaml`: hardcoded light blue hyperlink → `{DynamicResource PrimaryHueMidBrush}`
 
-**Removed stale properties from `UserSettingsFake`:**
-- `LastUpdateCheck`, `LedsPerSpot`, `OffsetX`, `OffsetY` — not present in `IUserSettings` interface
+### 2026-03-20 — Arduino sketch improvements
+- Bug fix: `last_serial_available` initialised to `0UL` (was `-1L` → wrapped to `ULONG_MAX`)
+- Replaced manual LED copy loop with `memcpy`; inlined BGR→RGB conversion
+- Verified on hardware: Flash 6224 bytes (2%), RAM 3090 bytes (37%)
 
-**Bug fixes / code smell corrections:**
-- `SettingsViewModel`: removed dead `PropertyChanged` handler that assigned `name` but never used it
-- `SettingsViewModel`: `SpotsXMaximum` / `SpotsYMaximum` getters were mutating state — moved mutation into `Settings.PropertyChanged` handler; getters now just return the backing field
-- `Spot`: removed empty `IDisposable` / `Dispose()` — `ISpot` does not require it
-- `SerialStream`: tightened bare `catch {}` to `catch (UnauthorizedAccessException)`
-
-**Commented-out code removed:**
-- `FakeSerialPort.cs` — stale `_log.Warn(...)` line
-- `NightLightDetection.cs` — stale `[VectorType(43)]` attribute
-
-**Boilerplate using cleanup:**
-- Stripped unused template-generated `using` statements from all 7 `SettingsWindowComponents` codebehind files
-- Cleaned unused usings in `FakeSerialPort`, `NightLightDetection`, `StartupManager`, `UserSettingsFake`
-
-**Build result:** 0 warnings, 0 errors.
-
----
-
-### 2026-03-16 — Test project migrated to .NET 8 (branch: `cleanup/remove-dead-code`)
-
-The test project (`adrilight.Tests`) was on legacy .NET 4.7.2 and could no longer run against the .NET 8 main project.
-
-**Changes:**
-- Rewrote `adrilight.Tests.csproj` as SDK-style targeting `net8.0-windows`
-- Updated packages: `MSTest.TestAdapter/Framework` → 3.6.1, `Moq` → 4.20.72, added `Microsoft.NET.Test.Sdk` 17.11.1
-- Deleted `app.config`, `packages.config`, `Properties/AssemblyInfo.cs`
-- Removed leftover commented-out debug block in `SpotsetTests.cs`
-
-**Test result:** 13/13 passed.
-
----
-
-### 2026-03-16 — Rename Perry Edition → AbsenteeAtom Edition; bump to v3.0.0
-
-- `WhatsNew.xaml` version string updated
-- `AssemblyInfo.cs` version bumped 2.1.0 → 3.0.0, company `fabsenet` → `AbsenteeAtom`
-- `UserSettingsFake` default `AdrilightVersion` updated to `3.0.0`
-- `README.md` fully rewritten — hardware setup, software setup, TCP API docs, build instructions, credits
-
----
-
-### 2026-03-16 — About page restructured (`WhatsNew.xaml`)
-
-- Removed "Remote 7" product reference from TCP server description
-- Added brief description of what adrilight does to the header card
-- Added credits line (fabsenet, jasonpang)
-- Reorganised changes into sections: Platform, New Features, Performance, Reliability
-- Added TCP Control API quick-reference table as a third card
-
----
-
-### 2026-03-16 — XAML theme resource fixes
-
-**`LedSetup.xaml`**
-- `Complete LED Count` number `TextBlock`: removed explicit `Foreground="{DynamicResource MaterialDesignSecondaryLightBrush}"` — was resolving to black in the active theme; now inherits `MaterialDesignBody` from the UserControl
-
-**`LightingModeSetup.xaml`**
-- Heart icon: `{StaticResource PrimaryHueLightBrush}` → `{DynamicResource PrimaryHueLightBrush}` — `StaticResource` for a theme brush resolves once at startup and won't follow theme changes
-
-**`Whitebalance.xaml`**
-- Night Light mode hyperlink: hardcoded `Foreground="#FF84C1FF"` → `{DynamicResource PrimaryHueMidBrush}` — light blue was invisible on light backgrounds
-
-**Intentionally left unchanged:**
-- Decorative icon colours in `Whitebalance.xaml` (NightSky/AutoAwesome blue, Brain/WhiteBalanceSunny gold) — semantic colour choices
-- Preview canvas gradient (`#686868` → `#C2C2C2`) — functional backdrop for the LED overlay display
-- "EXPERIMENTAL!" red warning text (`#FFFD7474`) — intentional
-
----
-
-### 2026-03-20 — Arduino sketch improvements (`Arduino/adrilight/adrilight.ino`)
-
-**Bug fix:**
-- `last_serial_available` initialised to `-1L` — wraps to `ULONG_MAX` on `unsigned long`, causing incorrect timeout behaviour on first boot. Fixed to `0UL`.
-
-**Readability / efficiency:**
-- Separated postamble read from the LED loop — removed `NUM_LEDS+1` iteration; postamble is now an explicit read after the LED loop
-- Replaced manual LED copy loop with `memcpy(leds, ledsTemp, sizeof(leds))`
-- Inlined BGR→RGB conversion, removing three redundant local byte variables
-- Marked `PREAMBLE_LENGTH` as `const`
-- Added comment clarifying `UPDATES_PER_SECOND` applies to animation/fade modes only, not ambilight
-
-**Verified on hardware:** sketch compiled and uploaded successfully.
-- Flash: 6224 bytes (2% of 253952)
-- RAM: 3090 bytes (37% of 8192) — well within safe limits for current LED count
-
-**Rollback:** `git checkout HEAD~1 -- Arduino/adrilight/adrilight.ino`
-
----
-
-### 2026-03-20 — README improvements
-
-- Added MIT / .NET 8 / Platform badges
-- Added Table of Contents
-- Replaced `<your-repo-url>` placeholder with actual GitHub clone URL
-- Expanded Arduino setup section to show constants users need to edit
-- Expanded hardware power warning and power injection note
-- Added publish command to build section
-- Pushed to both `main` and `cleanup/remove-dead-code`
-
----
-
-### 2026-03-20 — Git identity updated
-
-- Local repo git config updated: `user.name = AbsenteeAtom`, `user.email = psbeau@gmail.com`
-- Applies to this repo only (not global)
-
----
-
-### 2026-03-20 — Black bar detection: remap to nearest content edge
-
-**Behaviour change** (replaces "set bar LEDs to black"):
-
-LEDs whose spot rectangles fall entirely within a detected black bar are no longer turned off. Instead, `GetSamplingRectangle()` clamps the sampling rectangle to the nearest edge of the active content region, so those LEDs always reflect the closest real picture colour.
-
-**Files changed:**
-- `adrilight/DesktopDuplication/DesktopDuplicatorReader.cs`
-  - `ProcessSpot()`: removed early-return/black branch; now calls `GetSamplingRectangle()` and uses the result as the sampling rectangle throughout
-  - Added `internal static Rectangle GetSamplingRectangle(Rectangle spotRect, Rectangle activeRegion)` — clamps spot to nearest content edge; returns spot unchanged when `activeRegion.IsEmpty`
-- `adrilight.Tests/BlackBarDetectionTests.cs`
-  - Added 7 new `GetSamplingRectangle` tests covering: inside, above, below, left, right, empty active region, and partial overlap
-  - Total tests: 24/24 passing
+### 2026-03-20 — Four architecture fixes + black bar detection (v3.1.0)
+1. BGR byte order documented with named constants in `SerialStream.cs`
+2. Baud rate moved from hardcoded const to `UserSettings.BaudRate`
+3. `IsDirty = false` moved inside `SpotSet.Lock` for atomicity
+4. Version migration extracted to `UserSettingsManager.ApplyMigrations()`
+5. Black bar detection added: `DetectBlackBars()` + `GetSamplingRectangle()` + settings toggle + 11 tests
+6. Version bumped to 3.1.0
 
 ---
 
@@ -267,8 +253,8 @@ LEDs whose spot rectangles fall entirely within a detected black bar are no long
 
 - The app starts minimized to the system tray by default — check the tray if the window doesn't appear
 - `StartMinimized` is a user setting on the General Setup tab; the settings window always opens on first run or after a version change
-- Serial baud rate is hardcoded at `1,000,000` in `SerialStream.cs`
+- `UserSettings.BaudRate` defaults to 1,000,000. Arduino sketch must be flashed to match.
 - The ML model for Night Light detection is embedded as a resource (`Resources/NightLightDetectionModel.zip`)
 - SharpDX assemblies are referenced directly from the NuGet cache via HintPath — not via PackageReference — because the netstandard build lacks `AcquireNextFrame`
 - The TCP control server listens on `127.0.0.1:5080`
-- To revert all cleanup changes to the pre-session state: `git checkout main`
+- Git identity for this repo: `user.name = AbsenteeAtom`, `user.email = psbeau@gmail.com`
