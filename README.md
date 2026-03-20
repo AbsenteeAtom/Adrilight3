@@ -4,7 +4,7 @@
 
 > An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
 
-**adrilight 3.0.0 — AbsenteeAtom Edition**
+**adrilight 3.1.0 — AbsenteeAtom Edition**
 Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
 The original author retired the project; this fork modernises it for .NET 8 and adds new features.
 
@@ -17,7 +17,7 @@ The original author retired the project; this fork modernises it for .NET 8 and 
 ## Contents
 
 - [What does it do?](#what-does-it-do)
-- [What's new in 3.0.0](#whats-new-in-300)
+- [What's new in 3.1.0](#whats-new-in-310)
 - [Requirements](#requirements)
 - [Hardware Setup](#hardware-setup)
 - [Software Setup](#software-setup)
@@ -40,7 +40,7 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 
 ---
 
-## What's new in 3.0.0
+## What's new in 3.1.0
 
 Compared to the original fabsenet v2.0.9:
 
@@ -161,10 +161,10 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 **Publish a local executable:**
 ```bash
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.0.0
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.1.0
 ```
 
-Output goes to `publish/adrilight-3.0.0/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
+Output goes to `publish/adrilight-3.1.0/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
 
 ---
 
