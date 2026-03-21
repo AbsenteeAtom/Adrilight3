@@ -25,10 +25,10 @@ namespace adrilight.ViewModel
     {
         private static ILogger _log = LogManager.GetCurrentClassLogger();
 
-        private const string ProjectPage = "https://github.com/fabsenet/adrilight";
-        private const string IssuesPage = "https://github.com/fabsenet/adrilight/issues";
-        private const string NightlightMdPage = "https://github.com/fabsenet/adrilight/blob/master/NightlightDetection.md";
-        private const string LatestReleasePage = "https://github.com/fabsenet/adrilight/releases/latest";
+        private const string ProjectPage = "https://github.com/AbsenteeAtom/Adrilight3";
+        private const string IssuesPage = "https://github.com/AbsenteeAtom/Adrilight3/issues";
+        private const string NightlightMdPage = "https://github.com/AbsenteeAtom/Adrilight3/blob/main/NightlightDetection.md";
+        private const string LatestReleasePage = "https://github.com/AbsenteeAtom/Adrilight3/releases";
 
         public SettingsViewModel(IUserSettings userSettings, IList<ISelectableViewPart> selectableViewParts,
             ISpotSet spotSet, IContext context, ISerialStream serialStream)
