@@ -4,7 +4,7 @@
 
 > An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
 
-**adrilight 3.1.0 — AbsenteeAtom Edition**
+**adrilight 3.2.0 — AbsenteeAtom Edition**
 Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
 The original author retired the project; this fork modernises it for .NET 8 and adds new features.
 
@@ -17,7 +17,7 @@ The original author retired the project; this fork modernises it for .NET 8 and 
 ## Contents
 
 - [What does it do?](#what-does-it-do)
-- [What's new in 3.1.0](#whats-new-in-310)
+- [What's new in 3.2.0](#whats-new-in-320)
 - [Requirements](#requirements)
 - [Hardware Setup](#hardware-setup)
 - [Software Setup](#software-setup)
@@ -40,7 +40,7 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 
 ---
 
-## What's new in 3.1.0
+## What's new in 3.2.0
 
 Compared to the original fabsenet v2.0.9:
 
@@ -48,6 +48,8 @@ Compared to the original fabsenet v2.0.9:
 - **TCP control server** — send `ON`, `OFF`, `TOGGLE`, `STATUS` or `EXIT` commands to `127.0.0.1:5080` from any local app or script
 - **Session lock / unlock** — LEDs turn off automatically when you lock Windows and restore when you unlock
 - **Screen saver detection** — LEDs turn off when the screen saver starts and restore when it stops
+- **Sleep / wake awareness** — LEDs pause automatically when the PC sleeps and restore on wake
+- **Black bar detection** — letterbox and pillarbox bars detected each frame; LEDs over bars remap to the nearest content edge so all LEDs stay active
 - **Dirty flag optimisation** — serial data is only sent to the Arduino when screen colours have actually changed, eliminating redundant writes during static content
 - **Default 30 fps** — reduced from 60 fps; significantly lower GPU usage with no visible difference on LEDs
 - **Removed Squirrel auto-updater** — eliminated source of antivirus false positives
@@ -161,10 +163,10 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 **Publish a local executable:**
 ```bash
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.1.0
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.2.0
 ```
 
-Output goes to `publish/adrilight-3.1.0/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
+Output goes to `publish/adrilight-3.2.0/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
 
 ---
 

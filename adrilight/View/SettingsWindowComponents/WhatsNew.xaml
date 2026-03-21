@@ -24,7 +24,7 @@
         <materialDesign:Card Margin="4 4 4 4" Grid.Row="0">
             <StackPanel Margin="38 28 38 28">
                 <TextBlock FontSize="24" FontWeight="Bold" Margin="0 0 0 8">adrilight</TextBlock>
-                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.1.0 — AbsenteeAtom Edition</TextBlock>
+                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.2.0 — AbsenteeAtom Edition</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 6">
                     Ambient LED lighting for Windows. Captures your screen in real time using the Desktop Duplication API,
                     calculates the average colour across zones around the edge of the screen, and drives a WS2812b LED
@@ -81,7 +81,7 @@
                     ● Settings window always shown on first run or after a version change, even when Start Minimised is enabled.
                 </TextBlock>
 
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.1.0</TextBlock>
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.2.0</TextBlock>
 
                 <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Black Bar Detection</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
