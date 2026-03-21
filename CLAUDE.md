@@ -52,6 +52,9 @@ dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o .
 Output goes to `publish/adrilight-3.2.0/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
 The `publish/` folder is excluded from git via `.gitignore`.
 
+### End-user installation guide
+`INSTALLATION.md` in the repo root is a plain-English guide for first-time users. It covers hardware requirements (including power supply sizing), LED strip layout and corner connectors, wiring (power injection, data break), Arduino IDE setup and sketch configuration, COM port identification, installing and running Adrilight, basic settings configuration, and common troubleshooting steps. Update it if any of those areas change.
+
 ### GitHub Release checklist
 1. Run the publish command above to produce the release folder.
 2. Copy the Arduino sketch into the publish folder, preserving its subfolder:

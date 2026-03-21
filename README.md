@@ -26,6 +26,8 @@ The original author retired the project; this fork modernises it for .NET 8 and 
 - [Known Limitations](#known-limitations)
 - [Credits](#credits)
 
+> **New to Adrilight?** See the [full installation guide](INSTALLATION.md) for step-by-step instructions covering hardware wiring, Arduino setup, and first-time configuration.
+
 ---
 
 ## What does it do?
