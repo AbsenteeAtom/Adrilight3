@@ -29,6 +29,7 @@ namespace adrilight
         private bool _transferActiveBeforeLock = false;
         private bool _screenSaverWasActive = false;
         private DispatcherTimer _screenSaverTimer;
+        private Util.SleepWakeController _sleepWakeController;
 
         protected override void OnStartup(StartupEventArgs startupEvent)
         {
@@ -84,6 +85,7 @@ namespace adrilight
             _tcpControlServer = new TcpControlServer(UserSettings, 5080);
             _tcpControlServer.Start();
 
+            _sleepWakeController = new Util.SleepWakeController(UserSettings);
             SetupScreenSaverTimer();
         }
 
@@ -150,8 +152,17 @@ namespace adrilight
             SystemEvents.PowerModeChanged += (s, e) =>
             {
                 _log.Debug("Changing Powermode to {0}", e.Mode);
-                if (e.Mode == PowerModes.Resume)
+                if (e.Mode == PowerModes.Suspend)
+                {
+                    _log.Debug("PC sleeping — pausing LEDs.");
+                    _sleepWakeController?.OnSuspend();
+                }
+                else if (e.Mode == PowerModes.Resume)
+                {
+                    _log.Debug("PC waking — restoring LED state.");
+                    _sleepWakeController?.OnResume();
                     GC.Collect();
+                }
             };
 
             SystemEvents.SessionSwitch += (s, e) =>

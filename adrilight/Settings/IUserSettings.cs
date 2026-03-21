@@ -44,9 +44,12 @@ namespace adrilight
         // Only change this if you recompile the Arduino sketch with a matching baud rate.
         int BaudRate { get; set; }
 
-        // Black bar detection — skips LED spots that fall entirely within detected black bars.
+        // Black bar detection — remaps bar LEDs to nearest content edge instead of turning them off.
         bool BlackBarDetectionEnabled { get; set; }
         byte BlackBarLuminanceThreshold { get; set; }
+
+        // Sleep/wake awareness — pauses LEDs on sleep, screensaver, or monitor-off; restores on wake.
+        bool SleepWakeAwarenessEnabled { get; set; }
 
         string AdrilightVersion { get; set; }
         AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get; set; }

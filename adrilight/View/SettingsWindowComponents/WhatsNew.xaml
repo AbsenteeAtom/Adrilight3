@@ -39,7 +39,7 @@
         <!-- What's new -->
         <materialDesign:Card Margin="4 0 4 4" Grid.Row="1">
             <StackPanel Margin="38 28 38 28">
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.1.0</TextBlock>
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.0.0</TextBlock>
 
                 <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Platform</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
@@ -93,6 +93,14 @@
                 </TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
                     ● Toggle and luminance threshold configurable in settings.
+                </TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Sleep / Wake Awareness</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● LEDs automatically pause when the PC sleeps or hibernates and restore when it wakes.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Can be toggled independently in settings (Sleep/Wake Awareness).
                 </TextBlock>
 
                 <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Reliability</TextBlock>

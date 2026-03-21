@@ -38,6 +38,7 @@ namespace adrilight
         private int _baudRate = 1000000;
         private bool _blackBarDetectionEnabled = true;
         private byte _blackBarLuminanceThreshold = 20;
+        private bool _sleepWakeAwarenessEnabled = true;
         private int _configFileVersion = 2;
         private AlternateWhiteBalanceModeEnum _alternateWhiteBalanceMode = AlternateWhiteBalanceModeEnum.Off;
 
@@ -70,6 +71,7 @@ namespace adrilight
         public int BaudRate { get => _baudRate; set => SetProperty(ref _baudRate, value); }
         public bool BlackBarDetectionEnabled { get => _blackBarDetectionEnabled; set => SetProperty(ref _blackBarDetectionEnabled, value); }
         public byte BlackBarLuminanceThreshold { get => _blackBarLuminanceThreshold; set => SetProperty(ref _blackBarLuminanceThreshold, value); }
+        public bool SleepWakeAwarenessEnabled { get => _sleepWakeAwarenessEnabled; set => SetProperty(ref _sleepWakeAwarenessEnabled, value); }
         public Guid InstallationId { get; set; } = Guid.NewGuid();
         public AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get => _alternateWhiteBalanceMode; set => SetProperty(ref _alternateWhiteBalanceMode, value); }
     }
