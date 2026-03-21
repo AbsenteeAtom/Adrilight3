@@ -17,7 +17,7 @@ The original author retired the project; this fork modernises it for .NET 8 and 
 ## Contents
 
 - [What does it do?](#what-does-it-do)
-- [What's new in 3.2.0](#whats-new-in-320)
+- [What's new](#whats-new)
 - [Requirements](#requirements)
 - [Hardware Setup](#hardware-setup)
 - [Software Setup](#software-setup)
@@ -40,7 +40,19 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 
 ---
 
-## What's new in 3.2.0
+## What's new
+
+### 3.2.0
+
+- **Sleep / wake awareness** — LEDs pause automatically when the PC sleeps or hibernates and restore when it wakes; toggled independently via the Sleep/Wake Awareness setting
+
+### 3.1.0
+
+- **Black bar detection** — letterbox and pillarbox bars detected each frame using a fast sparse edge scan; LEDs over black bar regions are remapped to sample the nearest picture content edge rather than being turned off — all LEDs remain active and reflect real colours at all times
+- **Serial baud rate setting** — baud rate moved from a hardcoded constant to a user setting; no rebuild required to match a custom Arduino configuration
+- **Settings migration centralised** — version upgrade logic extracted to `UserSettingsManager.ApplyMigrations()`; future migrations go in one place, not in startup code
+
+### 3.0.0
 
 Compared to the original fabsenet v2.0.9:
 
@@ -48,8 +60,6 @@ Compared to the original fabsenet v2.0.9:
 - **TCP control server** — send `ON`, `OFF`, `TOGGLE`, `STATUS` or `EXIT` commands to `127.0.0.1:5080` from any local app or script
 - **Session lock / unlock** — LEDs turn off automatically when you lock Windows and restore when you unlock
 - **Screen saver detection** — LEDs turn off when the screen saver starts and restore when it stops
-- **Sleep / wake awareness** — LEDs pause automatically when the PC sleeps and restore on wake
-- **Black bar detection** — letterbox and pillarbox bars detected each frame; LEDs over bars remap to the nearest content edge so all LEDs stay active
 - **Dirty flag optimisation** — serial data is only sent to the Arduino when screen colours have actually changed, eliminating redundant writes during static content
 - **Default 30 fps** — reduced from 60 fps; significantly lower GPU usage with no visible difference on LEDs
 - **Removed Squirrel auto-updater** — eliminated source of antivirus false positives

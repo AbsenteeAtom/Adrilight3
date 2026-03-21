@@ -19,13 +19,13 @@ This is **adrilight 3.2.0 — AbsenteeAtom Edition**, forked from [fabsenet/adri
 ### Project layout
 ```
 adrilight/
-  App.xaml / App.xaml.cs         — entry point, DI setup, session/screensaver hooks
+  App.xaml / App.xaml.cs         — entry point, DI setup, session/screensaver/sleep hooks
   DesktopDuplication/            — SharpDX screen capture + colour sampling
   Extensions/                    — ArrayExtensions (Swap)
   Fakes/                         — Design-time fake implementations
   Settings/                      — IUserSettings interface + UserSettings impl
   Spots/                         — ISpot / Spot / ISpotSet / SpotSet
-  Util/                          — SerialStream, TcpControlServer, NightLightDetection, FakeSerialPort, etc.
+  Util/                          — SerialStream, TcpControlServer, SleepWakeController, NightLightDetection, FakeSerialPort, etc.
   ValidationRules/               — WPF validation
   View/                          — XAML views + SettingsWindowComponents
   ViewModel/                     — SettingsViewModel, ViewModelLocator
@@ -35,9 +35,10 @@ adrilight.Tests/
   DependencyInjectionTests.cs    — DI container setup, design-time and runtime (2 tests)
   UserSettingsManagerTests.cs    — Settings save/load/migrate (3 tests)
   BlackBarDetectionTests.cs      — DetectBlackBars + GetSamplingRectangle (11 tests)
+  SleepWakeTests.cs              — SleepWakeController suspend/resume state machine (5 tests)
 ```
 
-Total tests: **24/24 passing**
+Total tests: **29/29 passing**
 
 ### Running tests
 ```
@@ -202,6 +203,13 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 - `DispatcherTimer` polls every 5 seconds using `SystemParametersInfo(SPI_GETSCREENSAVERRUNNING)`
 - Automatically turns LEDs off when screen saver starts, restores state when it stops
 
+**Sleep / Wake Awareness** (`App.xaml.cs` + `Util/SleepWakeController.cs`)
+- `SystemEvents.PowerModeChanged` handler calls `SleepWakeController.OnSuspend()` / `OnResume()`
+- On suspend: saves `TransferActive` state, sets it to `false`
+- On resume: restores previous state
+- Gated by `UserSettings.SleepWakeAwarenessEnabled` (default `true`)
+- Logic extracted to `SleepWakeController` so the state machine is unit-testable without a WPF host
+
 **Black Bar Detection** (`DesktopDuplicatorReader.cs`) — see dedicated section above
 
 ### Performance Improvements
@@ -246,6 +254,16 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 4. Version migration extracted to `UserSettingsManager.ApplyMigrations()`
 5. Black bar detection added: `DetectBlackBars()` + `GetSamplingRectangle()` + settings toggle + 11 tests
 6. Version bumped to 3.1.0
+
+### 2026-03-21 — Sleep/wake awareness + documentation overhaul (v3.2.0)
+1. `SleepWakeController` extracted to `Util/SleepWakeController.cs` — testable state machine for suspend/resume
+2. `PowerModeChanged` event in `App.xaml.cs` extended: Suspend → pause LEDs, Resume → restore state
+3. `SleepWakeAwarenessEnabled` added to `IUserSettings` / `UserSettings` / `UserSettingsFake` (default `true`)
+4. 5 new tests in `SleepWakeTests.cs`; total tests 29/29
+5. About page restructured: proper 3.0.0 / 3.1.0 / 3.2.0 sections; fixed duplicate 3.1.0 heading
+6. README restructured: per-version What's new subsections (3.2.0, 3.1.0, 3.0.0)
+7. CLAUDE.md updated to reflect 3.2.0 state
+8. Version bumped to 3.2.0
 
 ---
 
