@@ -52,6 +52,18 @@ dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o .
 Output goes to `publish/adrilight-3.2.0/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
 The `publish/` folder is excluded from git via `.gitignore`.
 
+### GitHub Release checklist
+1. Run the publish command above to produce the release folder.
+2. Copy the Arduino sketch into the publish folder, preserving its subfolder:
+   ```
+   Arduino/adrilight/adrilight.ino  →  publish/adrilight-3.2.0/Arduino/adrilight/adrilight.ino
+   ```
+3. Verify the `.exe` file version is correctly stamped (right-click → Properties → Details).
+4. Zip the entire `publish/adrilight-X.Y.Z/` folder as `adrilight-X.Y.Z.zip`.
+5. Upload the zip as the release asset on GitHub.
+
+> **Important:** Always include `adrilight.ino` in the release zip. End users need it to flash their Arduino — without it they cannot use the application.
+
 ---
 
 ## Architecture — Capture Pipeline
