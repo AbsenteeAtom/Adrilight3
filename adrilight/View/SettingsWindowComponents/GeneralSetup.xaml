@@ -81,6 +81,94 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
+                <materialDesign:PackIcon Kind="PowerSleep" Margin="0 8 0 0" Width="132" Height="132"
+                                         VerticalAlignment="Center"
+                                         HorizontalAlignment="Center"/>
+
+                <StackPanel Grid.Row="1" Margin="8 24 8 8">
+                    <DockPanel Margin="0 8 0 0">
+                        <ToggleButton DockPanel.Dock="Right"
+                        Style="{StaticResource MaterialDesignSwitchToggleButton}" VerticalAlignment="Center" Margin="8 0 0 0"
+                          ToolTip="Sleep/Wake Awareness" IsChecked="{Binding Settings.SleepWakeAwarenessEnabled}" />
+                        <TextBlock FontWeight="Bold">Sleep/Wake Awareness</TextBlock>
+                    </DockPanel>
+                    <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" TextAlignment="Justify" Margin="0 8 0 0">
+                        When enabled, adrilight automatically pauses the LEDs when the PC goes to sleep or hibernates,
+                        and restores them when it wakes up.
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </materialDesign:Card>
+
+        <materialDesign:Card Margin="4 4 4 4" Width="300">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <materialDesign:PackIcon Kind="CropLandscape" Margin="0 8 0 0" Width="132" Height="132"
+                                         VerticalAlignment="Center"
+                                         HorizontalAlignment="Center"/>
+
+                <StackPanel Grid.Row="1" Margin="8 24 8 8">
+                    <DockPanel Margin="0 8 0 0">
+                        <ToggleButton DockPanel.Dock="Right"
+                        Style="{StaticResource MaterialDesignSwitchToggleButton}" VerticalAlignment="Center" Margin="8 0 0 0"
+                          ToolTip="Black Bar Detection" IsChecked="{Binding Settings.BlackBarDetectionEnabled}" />
+                        <TextBlock FontWeight="Bold">Black Bar Detection</TextBlock>
+                    </DockPanel>
+                    <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" TextAlignment="Justify" Margin="0 8 0 0">
+                        Detects letterbox and pillarbox black bars each frame. LEDs over bar regions are remapped
+                        to sample the nearest picture content edge so all LEDs remain active.
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </materialDesign:Card>
+
+        <materialDesign:Card Margin="4 4 4 4" Width="300">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <materialDesign:PackIcon Kind="Brightness4" Margin="0 8 0 0" Width="132" Height="132"
+                                         VerticalAlignment="Center"
+                                         HorizontalAlignment="Center" />
+
+                <StackPanel Grid.Row="1" Margin="8 24 8 8">
+                    <TextBlock FontWeight="Bold">Black Bar Luminance Threshold</TextBlock>
+                    <DockPanel>
+                        <TextBox DockPanel.Dock="Right"
+                                MinWidth="50"
+                                Margin="8 0 0 8"
+                                VerticalAlignment="Bottom"
+                                Text="{Binding Settings.BlackBarLuminanceThreshold, UpdateSourceTrigger=PropertyChanged}" />
+                        <Slider Minimum="0"
+                                Maximum="80"
+                                Style="{StaticResource MaterialDesignDiscreteSlider}"
+                                Value="{Binding Settings.BlackBarLuminanceThreshold}" />
+                    </DockPanel>
+                    <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Margin="0 8 0 0" TextAlignment="Justify">
+                        Pixels at or below this brightness (0–80) are treated as black bars. Raise the value
+                        if bars are not being detected; lower it if content is being incorrectly masked.
+                        Default is 20.
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </materialDesign:Card>
+
+        <materialDesign:Card Margin="4 4 4 4" Width="300">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
                 <materialDesign:PackIcon Kind="Speedometer" Margin="0 8 0 0" Width="132" Height="132"
                                          VerticalAlignment="Center"
                                          HorizontalAlignment="Center" />
