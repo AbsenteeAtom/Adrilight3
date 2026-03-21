@@ -26,8 +26,6 @@ The original author retired the project; this fork modernises it for .NET 8 and 
 - [Known Limitations](#known-limitations)
 - [Credits](#credits)
 
-> **New to Adrilight?** See the [full installation guide](INSTALLATION.md) for step-by-step instructions covering hardware wiring, Arduino setup, and first-time configuration.
-
 ---
 
 ## What does it do?
@@ -86,6 +84,8 @@ Compared to the original fabsenet v2.0.9:
 ---
 
 ## Hardware Setup
+
+> A more comprehensive installation guide — covering power supply sizing, LED corner connectors, wiring best practices, and step-by-step Arduino configuration — can be found in [INSTALLATION.md](INSTALLATION.md).
 
 1. Attach the LED strip to the back of your monitor or TV. The data arrows must form a continuous loop around the screen.
 2. Divide the strip into four sides: Top, Right, Bottom, Left — opposite sides must have equal LED counts (Top = Bottom, Left = Right).
