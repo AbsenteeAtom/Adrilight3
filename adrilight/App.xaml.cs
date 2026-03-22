@@ -110,7 +110,8 @@ namespace adrilight
         }
 
         internal static IKernel SetupDependencyInjection(bool isInDesignMode,
-            ViewModel.DiagnosticsViewModel diagnosticsViewModel = null)
+            ViewModel.DiagnosticsViewModel diagnosticsViewModel = null,
+            string settingsFolder = null)
         {
             var kernel = new StandardKernel();
             if (isInDesignMode)
@@ -123,7 +124,7 @@ namespace adrilight
             }
             else
             {
-                var settingsManager = new UserSettingsManager();
+                var settingsManager = new UserSettingsManager(settingsFolder);
                 var settings = settingsManager.LoadIfExists() ?? settingsManager.MigrateOrDefault();
                 kernel.Bind<IUserSettings>().ToConstant(settings);
                 kernel.Bind<IContext>().To<WpfContext>().InSingletonScope();

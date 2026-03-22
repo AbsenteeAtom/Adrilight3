@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.IO;
 using adrilight.ViewModel;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Ninject;
@@ -23,7 +24,8 @@ namespace adrilight.Tests
         [TestMethod]
         public void RunTimeCreation_Works()
         {
-            var kernel = App.SetupDependencyInjection(false);
+            var tempFolder = Path.Combine(Path.GetTempPath(), "adrilight-tests-" + Guid.NewGuid());
+            var kernel = App.SetupDependencyInjection(false, settingsFolder: tempFolder);
 
             var UserSettings = kernel.Get<IUserSettings>();
             Assert.IsNotNull(UserSettings, "UserSettings");
