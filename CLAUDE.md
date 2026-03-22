@@ -47,9 +47,9 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 ### Building a local executable
 ```
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.2.1
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.3.0
 ```
-Output goes to `publish/adrilight-3.2.1/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
+Output goes to `publish/adrilight-3.3.0/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
 The `publish/` folder is excluded from git via `.gitignore`.
 
 ### End-user installation guide
@@ -59,7 +59,7 @@ The `publish/` folder is excluded from git via `.gitignore`.
 1. Run the publish command above to produce the release folder.
 2. Copy the Arduino sketch into the publish folder, preserving its subfolder:
    ```
-   Arduino/adrilight/adrilight.ino  →  publish/adrilight-3.2.1/Arduino/adrilight/adrilight.ino
+   Arduino/adrilight/adrilight.ino  →  publish/adrilight-3.3.0/Arduino/adrilight/adrilight.ino
    ```
 3. Verify the `.exe` file version is correctly stamped (right-click → Properties → Details).
 4. Zip the entire `publish/adrilight-X.Y.Z/` folder as `adrilight-X.Y.Z.zip`.
@@ -307,6 +307,13 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 
 ---
 
+## Working Preferences
+
+- **Discuss before implementing.** When given an instruction, briefly outline the proposed approach and flag any concerns or trade-offs before writing code. If there is a better way, say so — pushback is welcome. Do not blindly execute instructions.
+- **Rebuild and restart after every push.** After pushing to GitHub, republish to the `publish/adrilight-X.Y.Z/` folder and restart adrilight so the local build stays current with the repository.
+
+---
+
 ## Development Notes
 
 - The app starts minimized to the system tray by default — check the tray if the window doesn't appear
@@ -316,4 +323,3 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 - SharpDX assemblies are referenced directly from the NuGet cache via HintPath — not via PackageReference — because the netstandard build lacks `AcquireNextFrame`
 - The TCP control server listens on `127.0.0.1:5080`
 - Log files are written to `logs\` next to `adrilight.exe` — NLog is configured programmatically in `App.xaml.cs` (not `App.config`, which .NET 8 ignores for NLog)
-- Git identity for this repo: `user.name = AbsenteeAtom`, `user.email = psbeau@gmail.com`
