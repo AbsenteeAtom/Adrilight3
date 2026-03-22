@@ -126,7 +126,7 @@ namespace adrilight.Util
             _lastState = ParseRegistryData(data);
 
             var hex = BitConverter.ToString(data).Replace("-", " ");
-            _log.Debug($"Night Light state: {_lastState} (byte[18]=0x{data[18]:X2}) blob={hex}");
+            _log.Info($"Night Light state: {_lastState} (byte[18]=0x{data[18]:X2}) blob={hex}");
 
             return _lastState;
         }
