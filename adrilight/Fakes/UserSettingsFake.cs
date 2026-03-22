@@ -40,7 +40,7 @@ namespace adrilight.Fakes
         public bool BlackBarDetectionEnabled { get; set; } = true;
         public byte BlackBarLuminanceThreshold { get; set; } = 20;
         public bool SleepWakeAwarenessEnabled { get; set; } = true;
-        public string AdrilightVersion { get; set; } = "3.4.1";
+        public string AdrilightVersion { get; set; } = "3.4.2";
 
         public AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get; set; } = AlternateWhiteBalanceModeEnum.Off;
 #pragma warning disable CS0067

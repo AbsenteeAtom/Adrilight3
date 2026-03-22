@@ -24,7 +24,7 @@
         <materialDesign:Card Margin="4 4 4 4" Grid.Row="0">
             <StackPanel Margin="38 28 38 28">
                 <TextBlock FontSize="24" FontWeight="Bold" Margin="0 0 0 8">adrilight</TextBlock>
-                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.4.1 — AbsenteeAtom Edition</TextBlock>
+                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.4.2 — AbsenteeAtom Edition</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 6">
                     Ambient LED lighting for Windows. Captures your screen in real time using the Desktop Duplication API,
                     calculates the average colour across zones around the edge of the screen, and drives a WS2812b LED
@@ -163,6 +163,29 @@
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
                     ● Removed the Microsoft.ML dependency — the installer and publish folder are
                     significantly smaller as a result.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.4.2</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fixes</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Fixed: Night Light detection did not recognise the ON state on some Windows builds.
+                    Different Windows versions write different byte values to the registry blob at the
+                    detection position; both known ON values (0x15 and 0x12) are now handled.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Fixed: Night Light state changes (ON / OFF) were not appearing in the Diagnostics
+                    tab log. The log level has been raised so transitions are always visible in the UI.
+                </TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">UI</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Navigation sidebar label changed from the version string to "Menu".
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● White Balance page: info card icon updated, title and body text rewritten for
+                    clarity, and the calibration tip corrected to explain colour ratio rather than
+                    giving misleading absolute-value advice.
                 </TextBlock>
 
                 <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.4.1</TextBlock>

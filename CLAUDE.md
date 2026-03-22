@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.4.1 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.4.2 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -35,10 +35,10 @@ adrilight.Tests/
   UserSettingsManagerTests.cs    — Settings save/load/migrate + whitebalance clamping (6 tests)
   BlackBarDetectionTests.cs      — DetectBlackBars + GetSamplingRectangle (11 tests)
   SleepWakeTests.cs              — SleepWakeController suspend/resume state machine (5 tests)
-  NightLightDetectionTests.cs   — ParseRegistryData: ON, OFF, null, unexpected byte, too-short data (5 tests)
+  NightLightDetectionTests.cs   — ParseRegistryData: ON (0x15, 0x12), OFF (0x13, 0x10), null, unknown byte, too-short data (7 tests)
 ```
 
-Total tests: **47/47 passing**
+Total tests: **49/49 passing**
 
 ### Running tests
 ```
@@ -81,9 +81,9 @@ Everything upstream of `BitmapData` — acquiring a frame from DXGI, building mi
 
 ### Building a local executable
 ```
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.4.1
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.4.2
 ```
-Output goes to `publish/adrilight-3.4.1/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
+Output goes to `publish/adrilight-3.4.2/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
 The `publish/` folder is excluded from git via `.gitignore`.
 
 ### End-user installation guide
@@ -365,10 +365,13 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 7. **White Balance mode icon alignment fixed:** Row heights changed from `1*` to `auto`; icon `VerticalAlignment` set to `Top` and top margins unified to `8px` (matching the label top margin); description TextBlocks given matching `8px` top margin. Removes the visual gap between icons and their labels.
 8. Version bumped to 3.4.1
 
-### 2026-03-22 — Night Light detection fix + Diagnostics visibility (v3.4.2, pending release)
+### 2026-03-22 — Night Light detection fix + UI polish (v3.4.2)
 1. **Night Light byte[18]=0x12 not detected as On:** Different Windows builds write different base byte values to the CloudStore REG_BINARY blob. Previously only `0x15` was treated as On; `0x12` (observed on this machine) was silently classified as Off. `ParseRegistryData` now checks `data[18] == 0x15 || data[18] == 0x12`. Known value map: `0x12` / `0x15` = On; `0x10` / `0x13` = Off. Full blob is now logged on every change to aid future diagnosis of further variants.
 2. **Night Light state changes not visible in Diagnostics tab:** State change log was at `Debug` level; `ObservableCollectionNLogTarget` captures `Info+`. Changed to `_log.Info` so transitions appear in the Diagnostics UI.
 3. 2 new tests in `NightLightDetectionTests.cs` (`0x12` → On, `0x10` → Off); `AnyByteOtherThan0x15` test renamed/split for clarity. Total tests: 49/49.
+4. **Navigation sidebar label:** Changed from `{Binding Title}` ("adrilight 3.4.x") to static "Menu".
+5. **White Balance info card:** `PollBox` icon replaced with `InformationOutline`; title reworded to "Setting up white balance"; body rewritten for clarity; calibration tip corrected to explain colour ratio rather than giving misleading absolute-value advice; "Controling" typo fixed.
+6. Version bumped to 3.4.2.
 
 ---
 
