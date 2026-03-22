@@ -140,6 +140,7 @@ namespace adrilight
                 .SelectAllClasses()
                 .InheritedFrom<ISelectableViewPart>()
                 .BindAllInterfaces());
+            kernel.Bind<Util.INightLightRegistryReader>().To<Util.RegistryNightLightReader>().InSingletonScope();
             kernel.Bind<NightLightDetection>().ToSelf().InSingletonScope();
 
             var desktopDuplicationReader = kernel.Get<IDesktopDuplicatorReader>();
