@@ -125,30 +125,24 @@ namespace adrilight.Util
             _lastData = data;
             _lastState = ParseRegistryData(data);
 
-            if (_lastState == NightLightState.Unknown)
-                _log.Warn($"Night Light registry byte[18] = 0x{data[18]:X2} — " +
-                           "unrecognised value, detection unavailable.");
-            else
-                _log.Debug($"Night Light state: {_lastState}");
+            _log.Debug($"Night Light state: {_lastState} (byte[18]=0x{data[18]:X2})");
 
             return _lastState;
         }
 
         /// <summary>
         /// Pure parsing function — testable without registry access or SettingsViewModel.
-        /// Reads byte 18 of the CloudStore REG_BINARY blob: 0x15 = ON, 0x13 = OFF.
+        /// Reads byte 18 of the CloudStore REG_BINARY blob.
+        /// 0x15 means the Bond "enabled" field is present → Night Light ON.
+        /// Any other value means the field is absent → Night Light OFF.
+        /// Only null or too-short data returns Unknown.
         /// </summary>
         internal static NightLightState ParseRegistryData(byte[] data)
         {
             if (data == null || data.Length <= 18)
                 return NightLightState.Unknown;
 
-            return data[18] switch
-            {
-                0x15 => NightLightState.On,
-                0x13 => NightLightState.Off,
-                _    => NightLightState.Unknown
-            };
+            return data[18] == 0x15 ? NightLightState.On : NightLightState.Off;
         }
 
         private static bool DataEqual(byte[] a, byte[] b)

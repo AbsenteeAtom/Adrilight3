@@ -33,9 +33,12 @@ namespace adrilight.Tests
         }
 
         [TestMethod]
-        public void ParseRegistryData_UnexpectedByte_ReturnsUnknown()
+        public void ParseRegistryData_AnyByteOtherThan0x15_ReturnsOff()
         {
-            Assert.AreEqual(NightLightState.Unknown, NightLightDetection.ParseRegistryData(MakeData(0xFF)));
+            // All non-0x15 values are valid "field absent" states in the Bond encoding — treat as OFF
+            Assert.AreEqual(NightLightState.Off, NightLightDetection.ParseRegistryData(MakeData(0xFF)));
+            Assert.AreEqual(NightLightState.Off, NightLightDetection.ParseRegistryData(MakeData(0x13)));
+            Assert.AreEqual(NightLightState.Off, NightLightDetection.ParseRegistryData(MakeData(0x10)));
         }
 
         [TestMethod]
