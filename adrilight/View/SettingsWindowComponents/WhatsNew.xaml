@@ -39,7 +39,129 @@
         <!-- What's new -->
         <materialDesign:Card Margin="4 0 4 4" Grid.Row="1">
             <StackPanel Margin="38 28 38 28">
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.0.0</TextBlock>
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.4.2</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fixes</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Fixed: Night Light detection did not recognise the ON state on some Windows builds.
+                    Different Windows versions write different byte values to the registry blob at the
+                    detection position; both known ON values (0x15 and 0x12) are now handled.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Fixed: Night Light state changes (ON / OFF) were not appearing in the Diagnostics
+                    tab log. The log level has been raised so transitions are always visible in the UI.
+                </TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">UI</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Navigation sidebar label changed from the version string to "Menu".
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● White Balance page: info card icon updated, title and body text rewritten for
+                    clarity, and the calibration tip corrected to explain colour ratio rather than
+                    giving misleading absolute-value advice.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.4.1</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fixes</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Fixed: White Balance slider values could be saved above 100 after some sessions
+                    due to a MaterialDesign discrete-slider layout quirk. All six white balance setters
+                    now clamp to [1, 100]; a settings migration automatically repairs any previously
+                    saved corrupt value on first launch.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Fixed: White Balance page mode icons (Forced On / Auto detect / Forced Off) were
+                    misaligned vertically relative to their label text. Icons now correctly line up
+                    with their corresponding labels.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.4.0</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Night Light Detection</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Night Light state is now read directly from the Windows registry — no ML model,
+                    no probability scores, no uncertainty. The result is a definitive ON or OFF.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● If the registry key is not found (Night Light has never been configured on this
+                    machine), the Diagnostics tab shows Unknown and logs a warning rather than
+                    guessing Off.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Removed the Microsoft.ML dependency — the installer and publish folder are
+                    significantly smaller as a result.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.3.1</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fix</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Status indicator now uses a solid circle with a black outline, ensuring it is clearly
+                    visible against the orange toolbar background.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.3.0</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Diagnostics</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Status indicator in the toolbar — coloured circle turns amber on warnings and red on errors.
+                    Tooltip shows the current state; click to jump directly to the Diagnostics tab.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● In-app log viewer on the Diagnostics tab — shows the last 200 log entries with
+                    filterable view (All / Warnings+ / Errors+) and a Mark as read button.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Night Light detection status shown in real time on the Diagnostics tab.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Installation Guide added to the ⋮ menu for quick access to hardware setup documentation.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.2.1</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fix</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Fixed logging — log files were not being created in the published build because .NET 8
+                    ignores the NLog section in App.config. Logging is now configured in code and confirmed
+                    working. Log files are written to the logs\ folder next to adrilight.exe.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.2.0</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Sleep / Wake Awareness</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● LEDs automatically pause when the PC sleeps or hibernates and restore when it wakes.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Can be toggled independently in settings (Sleep/Wake Awareness).
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.1.0</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Black Bar Detection</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Automatically detects letterbox and pillarbox black bars each frame using a fast edge scan.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● LEDs over black bar regions are remapped to sample the nearest picture content edge — all LEDs
+                    remain active and reflect real colours at all times.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Toggle and luminance threshold configurable in settings.
+                </TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Reliability</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Serial baud rate refactored from a hardcoded constant to an internal setting (default 1,000,000); the Arduino sketch must still be flashed to match.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Settings migration logic centralised — version upgrades apply cleanly without touching startup code.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.0.0</TextBlock>
 
                 <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Platform</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
@@ -79,128 +201,6 @@
                 </TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
                     ● Settings window always shown on first run or after a version change, even when Start Minimised is enabled.
-                </TextBlock>
-
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.1.0</TextBlock>
-
-                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Black Bar Detection</TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
-                    ● Automatically detects letterbox and pillarbox black bars each frame using a fast edge scan.
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
-                    ● LEDs over black bar regions are remapped to sample the nearest picture content edge — all LEDs
-                    remain active and reflect real colours at all times.
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
-                    ● Toggle and luminance threshold configurable in settings.
-                </TextBlock>
-
-                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Reliability</TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
-                    ● Serial baud rate refactored from a hardcoded constant to an internal setting (default 1,000,000); the Arduino sketch must still be flashed to match.
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
-                    ● Settings migration logic centralised — version upgrades apply cleanly without touching startup code.
-                </TextBlock>
-
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.2.0</TextBlock>
-
-                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Sleep / Wake Awareness</TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
-                    ● LEDs automatically pause when the PC sleeps or hibernates and restore when it wakes.
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
-                    ● Can be toggled independently in settings (Sleep/Wake Awareness).
-                </TextBlock>
-
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.2.1</TextBlock>
-
-                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fix</TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
-                    ● Fixed logging — log files were not being created in the published build because .NET 8
-                    ignores the NLog section in App.config. Logging is now configured in code and confirmed
-                    working. Log files are written to the logs\ folder next to adrilight.exe.
-                </TextBlock>
-
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.3.0</TextBlock>
-
-                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Diagnostics</TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
-                    ● Status indicator in the toolbar — coloured circle turns amber on warnings and red on errors.
-                    Tooltip shows the current state; click to jump directly to the Diagnostics tab.
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
-                    ● In-app log viewer on the Diagnostics tab — shows the last 200 log entries with
-                    filterable view (All / Warnings+ / Errors+) and a Mark as read button.
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
-                    ● Night Light detection status shown in real time on the Diagnostics tab.
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
-                    ● Installation Guide added to the ⋮ menu for quick access to hardware setup documentation.
-                </TextBlock>
-
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.3.1</TextBlock>
-
-                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fix</TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
-                    ● Status indicator now uses a solid circle with a black outline, ensuring it is clearly
-                    visible against the orange toolbar background.
-                </TextBlock>
-
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.4.0</TextBlock>
-
-                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Night Light Detection</TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
-                    ● Night Light state is now read directly from the Windows registry — no ML model,
-                    no probability scores, no uncertainty. The result is a definitive ON or OFF.
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
-                    ● If the registry key is not found (Night Light has never been configured on this
-                    machine), the Diagnostics tab shows Unknown and logs a warning rather than
-                    guessing Off.
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
-                    ● Removed the Microsoft.ML dependency — the installer and publish folder are
-                    significantly smaller as a result.
-                </TextBlock>
-
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.4.1</TextBlock>
-
-                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fixes</TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
-                    ● Fixed: White Balance slider values could be saved above 100 after some sessions
-                    due to a MaterialDesign discrete-slider layout quirk. All six white balance setters
-                    now clamp to [1, 100]; a settings migration automatically repairs any previously
-                    saved corrupt value on first launch.
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
-                    ● Fixed: White Balance page mode icons (Forced On / Auto detect / Forced Off) were
-                    misaligned vertically relative to their label text. Icons now correctly line up
-                    with their corresponding labels.
-                </TextBlock>
-
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.4.2</TextBlock>
-
-                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fixes</TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
-                    ● Fixed: Night Light detection did not recognise the ON state on some Windows builds.
-                    Different Windows versions write different byte values to the registry blob at the
-                    detection position; both known ON values (0x15 and 0x12) are now handled.
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
-                    ● Fixed: Night Light state changes (ON / OFF) were not appearing in the Diagnostics
-                    tab log. The log level has been raised so transitions are always visible in the UI.
-                </TextBlock>
-
-                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">UI</TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
-                    ● Navigation sidebar label changed from the version string to "Menu".
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
-                    ● White Balance page: info card icon updated, title and body text rewritten for
-                    clarity, and the calibration tip corrected to explain colour ratio rather than
-                    giving misleading absolute-value advice.
                 </TextBlock>
             </StackPanel>
         </materialDesign:Card>
