@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.4.0 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.4.1 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -32,13 +32,13 @@ adrilight/
 adrilight.Tests/
   SpotsetTests.cs                — BoundsWalker, BuildSpots, LED offset, mirroring (8 tests)
   DependencyInjectionTests.cs    — DI container setup, design-time and runtime (2 tests)
-  UserSettingsManagerTests.cs    — Settings save/load/migrate (3 tests)
+  UserSettingsManagerTests.cs    — Settings save/load/migrate + whitebalance clamping (6 tests)
   BlackBarDetectionTests.cs      — DetectBlackBars + GetSamplingRectangle (11 tests)
   SleepWakeTests.cs              — SleepWakeController suspend/resume state machine (5 tests)
   NightLightDetectionTests.cs   — ParseRegistryData: ON, OFF, null, unexpected byte, too-short data (5 tests)
 ```
 
-Total tests: **44/44 passing**
+Total tests: **47/47 passing**
 
 ### Running tests
 ```
@@ -47,9 +47,9 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 ### Building a local executable
 ```
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.4.0
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.4.1
 ```
-Output goes to `publish/adrilight-3.4.0/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
+Output goes to `publish/adrilight-3.4.1/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
 The `publish/` folder is excluded from git via `.gitignore`.
 
 ### End-user installation guide
@@ -321,16 +321,19 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 8. 5 new tests in `NightLightDetectionTests.cs`; total tests 44/44
 9. Version bumped to 3.4.0
 
+### 2026-03-22 — WhitebalanceBlue corruption fix (v3.4.1)
+1. Root cause identified: `MaterialDesignDiscreteSlider` discrete-snap formula writes back `pixelPosition × tickFrequency` instead of the correct proportion, producing values above the slider Maximum (100). The observed values 135, 186, 206 correspond exactly to pixel positions 67, 92, 102 multiplied by `Width/(Maximum−Minimum) ≈ 2.02`.
+2. **Fix A (invariant):** All six whitebalance setters in `UserSettings` now clamp to `[1, 100]` via a private `Clamp()` helper — `Math.Clamp(value, (byte)1, (byte)100)`. Any out-of-range value written by the slider bug (or any other source) is silently clamped before reaching the backing field and JSON.
+3. **Fix B (repair):** `ApplyMigrations` v2→v3 step added: re-assigns all six whitebalance properties through the clamping setter, then sets `ConfigFileVersion = 3`. Repairs any already-corrupt value in an existing `adrilight-settings.json` on first launch after upgrade.
+4. **Pre-existing build warning fixed:** `UserSettings.cs` was missing `using System;`, causing a spurious `Guid` error in the WPF design-time temp project. Added the `using` directive.
+5. 3 new tests in `UserSettingsManagerTests.cs` (setter clamps above 100, clamps below 1, migration advances version); total tests 47/47
+6. Version bumped to 3.4.1
+
 ---
 
 ## Outstanding Bugs
 
-### WhitebalanceBlue random value on restart
-- **Symptom:** The "Normal Day Light" Blue slider shows an incorrect value (observed: 135, ~186, ~206) after some restarts. Red and Green stay correct. Restarting again sometimes restores the correct value.
-- **Confirmed:** The corrupted value is written to `adrilight-settings.json` by a previous session — subsequent restarts just load the already-corrupt file. It is not loaded incorrectly; it was saved incorrectly.
-- **Suspected trigger:** Occurs after a version update (What's New page shown on startup). Consistent with `isNewVersion = true` → `OpenSettingsWindow()` called unconditionally before `_nightLightDetection` is started.
-- **Suspected cause:** Possibly a `NightLightState` enum serialisation/deserialisation interaction introduced in v3.4.0, or a MaterialDesignDiscreteSlider write-back during initial layout when the window is opened at startup before bindings fully stabilise. Root cause not yet identified.
-- **Investigation status:** Diagnostic logging added and confirmed (stack trace pointed to JSON deserialization on load, not a new write in the same session). Bug has not reproduced since diagnostics were added.
+*(none)*
 
 ---
 

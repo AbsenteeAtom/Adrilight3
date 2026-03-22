@@ -1,6 +1,7 @@
 ﻿using adrilight.Settings;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Newtonsoft.Json;
+using System;
 
 namespace adrilight
 {
@@ -38,7 +39,7 @@ namespace adrilight
         private bool _blackBarDetectionEnabled = true;
         private byte _blackBarLuminanceThreshold = 20;
         private bool _sleepWakeAwarenessEnabled = true;
-        private int _configFileVersion = 2;
+        private int _configFileVersion = 3;
         private AlternateWhiteBalanceModeEnum _alternateWhiteBalanceMode = AlternateWhiteBalanceModeEnum.Off;
 
         public int ConfigFileVersion { get => _configFileVersion; set => SetProperty(ref _configFileVersion, value); }
@@ -60,12 +61,14 @@ namespace adrilight
         public bool StartMinimized { get => _startMinimized; set => SetProperty(ref _startMinimized, value); }
         public bool TransferActive { get => _transferActive; set => SetProperty(ref _transferActive, value); }
         public bool UseLinearLighting { get => _useLinearLighting; set => SetProperty(ref _useLinearLighting, value); }
-        public byte WhitebalanceRed { get => _whitebalanceRed; set => SetProperty(ref _whitebalanceRed, value); }
-        public byte WhitebalanceGreen { get => _whitebalanceGreen; set => SetProperty(ref _whitebalanceGreen, value); }
-        public byte WhitebalanceBlue { get => _whitebalanceBlue; set => SetProperty(ref _whitebalanceBlue, value); }
-        public byte AltWhitebalanceRed { get => _altWhitebalanceRed; set => SetProperty(ref _altWhitebalanceRed, value); }
-        public byte AltWhitebalanceGreen { get => _altWhitebalanceGreen; set => SetProperty(ref _altWhitebalanceGreen, value); }
-        public byte AltWhitebalanceBlue { get => _altWhitebalanceBlue; set => SetProperty(ref _altWhitebalanceBlue, value); }
+        public byte WhitebalanceRed { get => _whitebalanceRed; set => SetProperty(ref _whitebalanceRed, Clamp(value)); }
+        public byte WhitebalanceGreen { get => _whitebalanceGreen; set => SetProperty(ref _whitebalanceGreen, Clamp(value)); }
+        public byte WhitebalanceBlue { get => _whitebalanceBlue; set => SetProperty(ref _whitebalanceBlue, Clamp(value)); }
+        public byte AltWhitebalanceRed { get => _altWhitebalanceRed; set => SetProperty(ref _altWhitebalanceRed, Clamp(value)); }
+        public byte AltWhitebalanceGreen { get => _altWhitebalanceGreen; set => SetProperty(ref _altWhitebalanceGreen, Clamp(value)); }
+        public byte AltWhitebalanceBlue { get => _altWhitebalanceBlue; set => SetProperty(ref _altWhitebalanceBlue, Clamp(value)); }
+
+        private static byte Clamp(byte value) => Math.Clamp(value, (byte)1, (byte)100);
         public bool SendRandomColors { get => _sendRandomColors; set => SetProperty(ref _sendRandomColors, value); }
         public int BaudRate { get => _baudRate; set => SetProperty(ref _baudRate, value); }
         public bool BlackBarDetectionEnabled { get => _blackBarDetectionEnabled; set => SetProperty(ref _blackBarDetectionEnabled, value); }

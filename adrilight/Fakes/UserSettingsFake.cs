@@ -7,7 +7,7 @@ namespace adrilight.Fakes
     class UserSettingsFake : IUserSettings
     {
         public bool Autostart { get; set; } = true;
-        public int ConfigFileVersion { get; set; } = 2;
+        public int ConfigFileVersion { get; set; } = 3;
         public int BorderDistanceX { get; set; } = 33;
         public int BorderDistanceY { get; set; } = 44;
         public string ComPort { get; set; } = "COM7";
@@ -40,7 +40,7 @@ namespace adrilight.Fakes
         public bool BlackBarDetectionEnabled { get; set; } = true;
         public byte BlackBarLuminanceThreshold { get; set; } = 20;
         public bool SleepWakeAwarenessEnabled { get; set; } = true;
-        public string AdrilightVersion { get; set; } = "3.4.0";
+        public string AdrilightVersion { get; set; } = "3.4.1";
 
         public AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get; set; } = AlternateWhiteBalanceModeEnum.Off;
 #pragma warning disable CS0067

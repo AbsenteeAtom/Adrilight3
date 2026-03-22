@@ -54,8 +54,23 @@ namespace adrilight
                 settings.ConfigFileVersion = 2;
             }
 
+            if (settings.ConfigFileVersion == 2)
+            {
+                // v2 → v3: clamp any out-of-range whitebalance values that may have been written
+                // by a MaterialDesignDiscreteSlider discrete-snap bug (values above Maximum=100).
+                // Setter-level clamping (added in 3.4.1) will prevent recurrence, but this step
+                // repairs any already-corrupt JSON on first load after upgrading.
+                settings.WhitebalanceRed   = settings.WhitebalanceRed;
+                settings.WhitebalanceGreen = settings.WhitebalanceGreen;
+                settings.WhitebalanceBlue  = settings.WhitebalanceBlue;
+                settings.AltWhitebalanceRed   = settings.AltWhitebalanceRed;
+                settings.AltWhitebalanceGreen = settings.AltWhitebalanceGreen;
+                settings.AltWhitebalanceBlue  = settings.AltWhitebalanceBlue;
+                settings.ConfigFileVersion = 3;
+            }
+
             // Add future migrations here:
-            // if (settings.ConfigFileVersion == 2) { ... settings.ConfigFileVersion = 3; }
+            // if (settings.ConfigFileVersion == 3) { ... settings.ConfigFileVersion = 4; }
         }
 
         public IUserSettings MigrateOrDefault()

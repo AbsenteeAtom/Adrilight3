@@ -168,26 +168,7 @@
                             </TransformGroup>
                         </materialDesign:PackIcon.RenderTransform>
                     </materialDesign:PackIcon>
-                    <materialDesign:PackIcon Grid.Row="1" Grid.Column="0" Kind="Brain" Width="36" Height="36" Foreground="#FFEAAA00" Margin="1,18.667,0,0" RenderTransformOrigin="0.5,0.5" >
-                        <materialDesign:PackIcon.RenderTransform>
-                            <TransformGroup>
-                                <ScaleTransform/>
-                                <SkewTransform/>
-                                <RotateTransform Angle="8.401"/>
-                                <TranslateTransform/>
-                            </TransformGroup>
-                        </materialDesign:PackIcon.RenderTransform>
-                    </materialDesign:PackIcon>
-                    <materialDesign:PackIcon Grid.Row="1" Grid.Column="0" Kind="AutoAwesome" Width="22" Height="23" Foreground="#FF95C2FF" Margin="30,10.667,0,0" RenderTransformOrigin="0.5,0.5" >
-                        <materialDesign:PackIcon.RenderTransform>
-                            <TransformGroup>
-                                <ScaleTransform/>
-                                <SkewTransform/>
-                                <RotateTransform Angle="223.406"/>
-                                <TranslateTransform/>
-                            </TransformGroup>
-                        </materialDesign:PackIcon.RenderTransform>
-                    </materialDesign:PackIcon>
+                    <materialDesign:PackIcon Grid.Row="1" Grid.Column="0" Kind="Magnify" Width="31" Height="31" Foreground="#FF95C2FF" Margin="6,18,0,0" />
                     <materialDesign:PackIcon Grid.Row="2" Grid.Column="0" Kind="WhiteBalanceSunny" Width="38" Height="37" Foreground="#FFEAAA00" Margin="5,17.333,0,0" RenderTransformOrigin="0.5,0.5" >
                         <materialDesign:PackIcon.RenderTransform>
                             <TransformGroup>
@@ -202,16 +183,6 @@
                     <TextBlock Margin="58 8 18 38" FontWeight="Bold" Grid.Row="0" Grid.Column="0">Forced On</TextBlock>
 
                     <TextBlock Margin="58 8 18 38" FontWeight="Bold" Grid.Row="1" Grid.Column="0">Auto detect</TextBlock>
-                    <TextBlock Margin="2,59,72.4,49.4" FontWeight="Bold" Grid.Column="0"
-                               RenderTransformOrigin="0.5,0.5" Foreground="#FFFD7474" TextDecorations="{x:Null}" Grid.RowSpan="2">
-                        <TextBlock.RenderTransform>
-                            <TransformGroup>
-                                <ScaleTransform/>
-                                <SkewTransform/>
-                                <RotateTransform Angle="-7.268"/>
-                                <TranslateTransform/>
-                            </TransformGroup>
-                        </TextBlock.RenderTransform>EXPERIMENTAL!</TextBlock>
 
                     <TextBlock Margin="58 8 18 38" FontWeight="Bold" Grid.Row="2" Grid.Column="0">Forced Off</TextBlock>
 

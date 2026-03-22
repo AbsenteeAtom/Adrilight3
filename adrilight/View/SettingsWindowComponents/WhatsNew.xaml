@@ -24,7 +24,7 @@
         <materialDesign:Card Margin="4 4 4 4" Grid.Row="0">
             <StackPanel Margin="38 28 38 28">
                 <TextBlock FontSize="24" FontWeight="Bold" Margin="0 0 0 8">adrilight</TextBlock>
-                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.4.0 — AbsenteeAtom Edition</TextBlock>
+                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.4.1 — AbsenteeAtom Edition</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 6">
                     Ambient LED lighting for Windows. Captures your screen in real time using the Desktop Duplication API,
                     calculates the average colour across zones around the edge of the screen, and drives a WS2812b LED
@@ -165,6 +165,16 @@
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
                     ● Removed the Microsoft.ML dependency — the installer and publish folder are
                     significantly smaller as a result.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.4.1</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fix</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Fixed: White Balance Blue slider could show an incorrect value (above 100) after
+                    some sessions due to a MaterialDesign discrete-slider layout quirk writing back an
+                    out-of-range value. All six white balance setters now clamp to [1, 100]; a settings
+                    migration automatically repairs any previously saved corrupt value on first launch.
                 </TextBlock>
             </StackPanel>
         </materialDesign:Card>
