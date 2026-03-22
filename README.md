@@ -4,7 +4,7 @@
 
 > An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
 
-**adrilight 3.3.0 — AbsenteeAtom Edition**
+**adrilight 3.3.1 — AbsenteeAtom Edition**
 Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
 The original author retired the project; this fork modernises it for .NET 8 and adds new features.
 
@@ -42,6 +42,11 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 
 ## What's new
 
+### 3.3.1
+
+- **Status indicator visibility fix** — toolbar indicator changed from a coloured icon to a solid circle with a black outline, ensuring it is visible against the orange UI background
+- **Corrected baud rate release note** — baud rate is an internal setting, not yet exposed in the UI; release notes and About page corrected
+
 ### 3.3.0
 
 - **Diagnostics tab** — new in-app log viewer showing the last 200 log entries, filterable by All / Warnings+ / Errors+; Mark as read button resets the indicator
@@ -59,7 +64,7 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 ### 3.1.0
 
 - **Black bar detection** — letterbox and pillarbox bars detected each frame using a fast sparse edge scan; LEDs over black bar regions are remapped to sample the nearest picture content edge rather than being turned off — all LEDs remain active and reflect real colours at all times
-- **Serial baud rate setting** — baud rate moved from a hardcoded constant to a user setting; no rebuild required to match a custom Arduino configuration
+- **Serial baud rate refactored** — baud rate moved from a hardcoded constant to an internal user setting (default 1,000,000); the Arduino sketch must still be flashed to match
 - **Settings migration centralised** — version upgrade logic extracted to `UserSettingsManager.ApplyMigrations()`; future migrations go in one place, not in startup code
 
 ### 3.0.0
@@ -185,10 +190,10 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 **Publish a local executable:**
 ```bash
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.3.0
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.3.1
 ```
 
-Output goes to `publish/adrilight-3.3.0/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
+Output goes to `publish/adrilight-3.3.1/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
 
 ---
 

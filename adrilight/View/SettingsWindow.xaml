@@ -60,26 +60,23 @@
                         Style="{StaticResource MaterialDesignIconButton}"
                         ToolTip="{Binding Diagnostics.StatusTooltip}"
                         VerticalAlignment="Center" Margin="0 0 4 0">
-                    <materialDesign:PackIcon x:Name="StatusIcon" Width="22" Height="22">
-                        <materialDesign:PackIcon.Style>
-                            <Style TargetType="materialDesign:PackIcon">
-                                <Setter Property="Kind" Value="CheckCircleOutline"/>
-                                <Setter Property="Foreground" Value="#4CAF50"/>
+                    <Ellipse Width="16" Height="16" Stroke="Black" StrokeThickness="2">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="#4CAF50"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Diagnostics.Status}"
                                                  Value="{x:Static adrilight:DiagnosticStatus.Warning}">
-                                        <Setter Property="Kind" Value="AlertCircleOutline"/>
-                                        <Setter Property="Foreground" Value="#FFC107"/>
+                                        <Setter Property="Fill" Value="#FFC107"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Diagnostics.Status}"
                                                  Value="{x:Static adrilight:DiagnosticStatus.Error}">
-                                        <Setter Property="Kind" Value="AlertCircleOutline"/>
-                                        <Setter Property="Foreground" Value="#F44336"/>
+                                        <Setter Property="Fill" Value="#F44336"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
-                        </materialDesign:PackIcon.Style>
-                    </materialDesign:PackIcon>
+                        </Ellipse.Style>
+                    </Ellipse>
                 </Button>
 
                 <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="22" Text="{Binding Title}" />

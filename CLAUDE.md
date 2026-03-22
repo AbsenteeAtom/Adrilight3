@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.3.0 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.3.1 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -47,9 +47,9 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 ### Building a local executable
 ```
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.3.0
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.3.1
 ```
-Output goes to `publish/adrilight-3.3.0/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
+Output goes to `publish/adrilight-3.3.1/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
 The `publish/` folder is excluded from git via `.gitignore`.
 
 ### End-user installation guide
@@ -59,7 +59,7 @@ The `publish/` folder is excluded from git via `.gitignore`.
 1. Run the publish command above to produce the release folder.
 2. Copy the Arduino sketch into the publish folder, preserving its subfolder:
    ```
-   Arduino/adrilight/adrilight.ino  →  publish/adrilight-3.3.0/Arduino/adrilight/adrilight.ino
+   Arduino/adrilight/adrilight.ino  →  publish/adrilight-3.3.1/Arduino/adrilight/adrilight.ino
    ```
 3. Verify the `.exe` file version is correctly stamped (right-click → Properties → Details).
 4. Zip the entire `publish/adrilight-X.Y.Z/` folder as `adrilight-X.Y.Z.zip`.
@@ -304,6 +304,11 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 10. Installation Guide added to kebab menu (between Project Page and I have an issue)
 11. 10 new tests in `DiagnosticsViewModelTests.cs`; total tests 39/39
 12. Version bumped to 3.3.0
+
+### 2026-03-22 — Status indicator fix + baud rate note correction (v3.3.1)
+1. Toolbar status indicator changed from `PackIcon` (outline icon) to a solid `Ellipse` with black `Stroke` and coloured `Fill` — green/amber/red — ensuring visibility against the orange `PrimaryDark` toolbar background
+2. Baud rate release note corrected in `README.md` and `WhatsNew.xaml` — baud rate is an internal `UserSettings` property, not yet exposed in the UI; notes previously implied it was user-configurable
+3. Version bumped to 3.3.1
 
 ---
 
