@@ -1,32 +1,51 @@
-﻿using adrilight.ViewModel;
+using adrilight.ViewModel;
 using Microsoft.Win32;
 using NLog;
 using System;
-using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.ML;
-using Microsoft.ML.Data;
 
 namespace adrilight.Util
 {
+    public enum NightLightState { Unknown, Off, On }
+
+    /// <summary>Abstraction over the registry read, allowing unit tests to inject fake data.</summary>
+    public interface INightLightRegistryReader
+    {
+        byte[] ReadData();
+    }
+
+    public class RegistryNightLightReader : INightLightRegistryReader
+    {
+        // Windows 10 1903+ and all Windows 11
+        private const string KeyPath =
+            @"Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\DefaultAccount\Current\" +
+            @"default$windows.data.bluelightreduction.bluelightreductionstate\" +
+            @"windows.data.bluelightreduction.bluelightreductionstate";
+
+        public byte[] ReadData()
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(KeyPath, writable: false);
+            return key?.GetValue("Data") as byte[];
+        }
+    }
+
     class NightLightDetection
     {
         private readonly ILogger _log = LogManager.GetCurrentClassLogger();
-
         private readonly SettingsViewModel _settingsViewModel;
+        private readonly INightLightRegistryReader _reader;
 
-        public NightLightDetection(SettingsViewModel settingsViewModel)
+        public NightLightDetection(SettingsViewModel settingsViewModel,
+            INightLightRegistryReader reader = null)
         {
             _settingsViewModel = settingsViewModel ?? throw new ArgumentNullException(nameof(settingsViewModel));
+            _reader = reader ?? new RegistryNightLightReader();
 
             _settingsViewModel.Settings.PropertyChanged += (_, args) =>
             {
                 if (args.PropertyName == nameof(_settingsViewModel.Settings.AlternateWhiteBalanceMode))
-                {
                     ActOnce();
-                }
             };
             ActOnce();
         }
@@ -42,9 +61,7 @@ namespace adrilight.Util
         public void Stop()
         {
             _cancellationTokenSource.Cancel();
-
             if (_actingTask == null || _actingTask.IsCompleted) return;
-
             _actingTask.Wait();
         }
 
@@ -60,138 +77,86 @@ namespace adrilight.Util
             }
             catch (OperationCanceledException)
             {
-                //expected!
                 return;
             }
         }
 
         private readonly object _actOnceLock = new object();
+
         private void ActOnce()
         {
             lock (_actOnceLock)
             {
+                NightLightState state;
                 switch (_settingsViewModel.Settings.AlternateWhiteBalanceMode)
                 {
                     case Settings.AlternateWhiteBalanceModeEnum.On:
-                        _settingsViewModel.IsInNightLightMode = true;
+                        state = NightLightState.On;
                         break;
                     case Settings.AlternateWhiteBalanceModeEnum.Off:
-                        _settingsViewModel.IsInNightLightMode = false;
+                        state = NightLightState.Off;
                         break;
-
-                    case Settings.AlternateWhiteBalanceModeEnum.Auto:
-                        try
-                        {
-                            _settingsViewModel.IsInNightLightMode = IsWindowsInNightLightMode();
-                            // NightLightProbability is set inside IsWindowsInNightLightMode via _lastProbability
-                            _settingsViewModel.NightLightProbability = _lastProbability;
-                        }
-                        catch (Exception ex)
-                        {
-                            _log.Fatal(ex, $"Failed to guess the night light mode with an exception, switching from auto to off.");
-                            _settingsViewModel.Settings.AlternateWhiteBalanceMode = Settings.AlternateWhiteBalanceModeEnum.Off;
-                        }
+                    default: // Auto
+                        state = ReadNightLightState();
                         break;
                 }
+                _settingsViewModel.UpdateNightLightState(state);
             }
         }
-
-
-        private RegistryKey _stateKeyWin10 = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\Cache\DefaultAccount\$$windows.data.bluelightreduction.bluelightreductionstate\Current", false);
-        private RegistryKey _stateKeyInsider = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\DefaultAccount\Current\default$windows.data.bluelightreduction.bluelightreductionstate\windows.data.bluelightreduction.bluelightreductionstate", false);
 
         private byte[] _lastData;
-        private bool _lastResult;
-        private float _lastProbability;
-        Microsoft.ML.MLContext _context;
-        Microsoft.ML.Data.TransformerChain<Microsoft.ML.ITransformer> _model;
-        private PredictionEngine<NightLightDataRow, NightLightState> _predictor;
+        private NightLightState _lastState = NightLightState.Unknown;
 
-        private bool IsWindowsInNightLightMode()
+        internal NightLightState ReadNightLightState()
         {
-            try
+            var data = _reader.ReadData();
+
+            if (data == null)
             {
-                var data = (byte[])(_stateKeyInsider ?? _stateKeyWin10).GetValue("Data");
-
-                if(data == null)
-                {
-                    const string msg = "could not read or find any data for the night light mode in the registry.";
-                    _log.Error(msg);
-                    throw new Exception(msg);
-                }
-
-                if(_lastData != null && data.SequenceEqual(_lastData))
-                {
-                    return _lastResult;
-                }
-                if (_log.IsDebugEnabled) _log.Debug("read regval: " + data.Select(b => b.ToString()).Aggregate((s1, s2) => s1 + "," + s2));
-
-                var stateString = data.Select(b => b.ToString()).Aggregate((s1, s2) => s1 + "," + s2);
-
-                if (_predictor == null)
-                {
-                    _context = new Microsoft.ML.MLContext();
-                    using (var zipStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("adrilight.Resources.NightLightDetectionModel.zip"))
-                    {
-                        _model = _context.Model.Load(zipStream, out var inputSchema) as Microsoft.ML.Data.TransformerChain<Microsoft.ML.ITransformer>;
-                        _predictor = _context.Model.CreatePredictionEngine<NightLightDataRow, NightLightState>(_model);
-                    }
-                }
-
-                var predicted = _predictor.Predict(new NightLightDataRow(data, true));
-                var isUnclearResult = predicted.Probability <= 0.9f && predicted.Probability >= 0.1f;
-                if (isUnclearResult)
-                {
-                    _log.Warn($"predicted: {predicted.PredictedLabel}, {predicted.Probability:0.00000}");
-                }
-                else
-                {
-                    _log.Debug($"predicted: {predicted.PredictedLabel}, {predicted.Probability:0.00000}");
-                }
-
-                _lastData = data;
-                _lastResult = predicted.PredictedLabel;
-                _lastProbability = predicted.Probability;
-
-                return predicted.PredictedLabel;
+                _log.Warn("Night Light registry path not found — detection unavailable. " +
+                          "This may indicate a Windows update has changed the registry structure.");
+                return NightLightState.Unknown;
             }
-            catch (Exception ex)
+
+            // Skip re-parse if the registry data hasn't changed
+            if (_lastData != null && DataEqual(data, _lastData))
+                return _lastState;
+
+            _lastData = data;
+            _lastState = ParseRegistryData(data);
+
+            if (_lastState == NightLightState.Unknown)
+                _log.Warn($"Night Light registry byte[18] = 0x{data[18]:X2} — " +
+                           "unrecognised value, detection unavailable.");
+            else
+                _log.Debug($"Night Light state: {_lastState}");
+
+            return _lastState;
+        }
+
+        /// <summary>
+        /// Pure parsing function — testable without registry access or SettingsViewModel.
+        /// Reads byte 18 of the CloudStore REG_BINARY blob: 0x15 = ON, 0x13 = OFF.
+        /// </summary>
+        internal static NightLightState ParseRegistryData(byte[] data)
+        {
+            if (data == null || data.Length <= 18)
+                return NightLightState.Unknown;
+
+            return data[18] switch
             {
-                _log.Error(ex, "IsWindowsInNightLightMode() failed");
-                throw;
-            }
-        }
-    }
-
-
-    class NightLightDataRow
-    {
-        public bool IsActive { get; }
-
-        public byte[] Data { get; }
-
-        [Microsoft.ML.Data.VectorType(35)]
-        public float[] Data2 {
-            get;
+                0x15 => NightLightState.On,
+                0x13 => NightLightState.Off,
+                _    => NightLightState.Unknown
+            };
         }
 
-        public NightLightDataRow()
+        private static bool DataEqual(byte[] a, byte[] b)
         {
-
+            if (a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+                if (a[i] != b[i]) return false;
+            return true;
         }
-
-        public NightLightDataRow(byte[] data, bool isActive)
-        {
-            Data = data;
-            Data2 = data.Concat(Enumerable.Repeat((byte)0, Math.Max(0, 35 - data.Length))).Select(d => (float)d).Take(35).ToArray();
-            IsActive = isActive;
-        }
-    }
-
-    class NightLightState
-    {
-        public float Probability { get; set; }
-        public bool PredictedLabel { get; set; }
-
     }
 }

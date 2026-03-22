@@ -1,4 +1,5 @@
 ﻿using adrilight.DesktopDuplication;
+using adrilight.Util;
 using adrilight.Resources;
 using adrilight.Settings;
 using adrilight.View;
@@ -27,7 +28,6 @@ namespace adrilight.ViewModel
 
         private const string ProjectPage = "https://github.com/AbsenteeAtom/Adrilight3";
         private const string IssuesPage = "https://github.com/AbsenteeAtom/Adrilight3/issues";
-        private const string NightlightMdPage = "https://github.com/AbsenteeAtom/Adrilight3/blob/main/NightlightDetection.md";
         private const string LatestReleasePage = "https://github.com/AbsenteeAtom/Adrilight3/releases";
         private const string InstallationGuidePage = "https://github.com/AbsenteeAtom/Adrilight3/blob/main/INSTALLATION.md";
 
@@ -197,7 +197,6 @@ namespace adrilight.ViewModel
 
         public ICommand OpenUrlProjectPageCommand { get; } = new RelayCommand(() => OpenUrl(ProjectPage));
         public ICommand OpenUrlIssuesPageCommand { get; } = new RelayCommand(() => OpenUrl(IssuesPage));
-        public ICommand OpenNightlightMdPageCommand { get; } = new RelayCommand(() => OpenUrl(NightlightMdPage));
         public ICommand OpenUrlLatestReleaseCommand { get; } = new RelayCommand(() => OpenUrl(LatestReleasePage));
         public ICommand OpenUrlInstallationGuideCommand { get; } = new RelayCommand(() => OpenUrl(InstallationGuidePage));
         public ICommand ExitAdrilight { get; } = new RelayCommand(() => App.Current.Shutdown(0));
@@ -261,34 +260,21 @@ namespace adrilight.ViewModel
             {
                 SetProperty(ref _isInNightLightMode, value);
                 OnPropertyChanged(nameof(IsInDaylightLightMode));
-                UpdateNightLightConfidenceDisplay();
             }
         }
 
         public bool IsInDaylightLightMode => !_isInNightLightMode;
 
-        private float _nightLightProbability;
-        public float NightLightProbability
+        /// <summary>Called by NightLightDetection after each registry read or mode override.</summary>
+        public void UpdateNightLightState(NightLightState state)
         {
-            get => _nightLightProbability;
-            set
+            IsInNightLightMode = state == NightLightState.On;
+            var display = state switch
             {
-                SetProperty(ref _nightLightProbability, value);
-                UpdateNightLightConfidenceDisplay();
-            }
-        }
-
-        private void UpdateNightLightConfidenceDisplay()
-        {
-            var state = _isInNightLightMode ? "ON" : "OFF";
-            string display;
-            if (_nightLightProbability == 0f)
-                display = $"Night Light: {state}";
-            else if (_nightLightProbability <= 0.9f && _nightLightProbability >= 0.1f)
-                display = $"Night Light: {state} — UNCERTAIN ({(int)(_nightLightProbability * 100)}% confidence)";
-            else
-                display = $"Night Light: {state} ({(int)(_nightLightProbability * 100)}% confidence)";
-
+                NightLightState.On  => "Night Light: ON",
+                NightLightState.Off => "Night Light: OFF",
+                _                   => "Night Light: Unknown"
+            };
             Diagnostics?.UpdateNightLightDisplay(display);
         }
 

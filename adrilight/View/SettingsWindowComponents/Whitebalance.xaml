@@ -220,12 +220,8 @@
                         of information. You basically have to decide on your own when to use this or not
                     </TextBlock>
                     <TextBlock Margin="8 0 50 0" Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" TextAlignment="Justify">
-                        This mode tries to detect the actual night light mode of Windows to switch automatically 
-                        the mode at the same time. Consider this mode as <Span Foreground="#FFFD7474">experimental</Span>. 
-                        <LineBreak/>
-                        <Hyperlink Command="{Binding OpenNightlightMdPageCommand}" Foreground="{DynamicResource PrimaryHueMidBrush}">
-                            Learn how it works and how to report errors
-                        </Hyperlink>
+                        This mode reads the Windows Night Light state directly from the registry and switches
+                        the alternate white balance automatically. Current state is shown on the Diagnostics tab.
                     </TextBlock>
                     <TextBlock Margin="8 0 50 0" Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" TextAlignment="Justify">
                         This mode <Italic>disables</Italic> the alternate whitebalance without any other external source 

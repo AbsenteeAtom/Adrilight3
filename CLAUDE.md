@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.3.1 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.4.0 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -36,9 +36,10 @@ adrilight.Tests/
   UserSettingsManagerTests.cs    — Settings save/load/migrate (3 tests)
   BlackBarDetectionTests.cs      — DetectBlackBars + GetSamplingRectangle (11 tests)
   SleepWakeTests.cs              — SleepWakeController suspend/resume state machine (5 tests)
+  NightLightDetectionTests.cs   — ParseRegistryData: ON, OFF, null, unexpected byte, too-short data (5 tests)
 ```
 
-Total tests: **39/39 passing**
+Total tests: **44/44 passing**
 
 ### Running tests
 ```
@@ -47,9 +48,9 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 ### Building a local executable
 ```
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.3.1
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.4.0
 ```
-Output goes to `publish/adrilight-3.3.1/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
+Output goes to `publish/adrilight-3.4.0/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
 The `publish/` folder is excluded from git via `.gitignore`.
 
 ### End-user installation guide
@@ -59,7 +60,7 @@ The `publish/` folder is excluded from git via `.gitignore`.
 1. Run the publish command above to produce the release folder.
 2. Copy the Arduino sketch into the publish folder, preserving its subfolder:
    ```
-   Arduino/adrilight/adrilight.ino  →  publish/adrilight-3.3.1/Arduino/adrilight/adrilight.ino
+   Arduino/adrilight/adrilight.ino  →  publish/adrilight-3.4.0/Arduino/adrilight/adrilight.ino
    ```
 3. Verify the `.exe` file version is correctly stamped (right-click → Properties → Details).
 4. Zip the entire `publish/adrilight-X.Y.Z/` folder as `adrilight-X.Y.Z.zip`.
@@ -310,6 +311,17 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 2. Baud rate release note corrected in `README.md` and `WhatsNew.xaml` — baud rate is an internal `UserSettings` property, not yet exposed in the UI; notes previously implied it was user-configurable
 3. Version bumped to 3.3.1
 
+### 2026-03-22 — Replace ML Night Light detection with direct registry read (v3.4.0)
+1. `NightLightDetection.cs` rewritten — ML.NET inference replaced with registry read of CloudStore REG_BINARY blob; `byte[18] == 0x15` → On, `0x13` → Off, null/other → Unknown
+2. `INightLightRegistryReader` interface introduced for testability; `RegistryNightLightReader` is the production implementation
+3. `NightLightState` enum added (`Unknown / Off / On`) replacing the old ML prediction class of the same name
+4. `SettingsViewModel` simplified — `NightLightProbability` and `UpdateNightLightConfidenceDisplay()` removed; replaced by `UpdateNightLightState(NightLightState)`
+5. `Whitebalance.xaml` updated — "experimental" label and "Learn how it works" hyperlink removed; description updated to reflect registry read
+6. `Microsoft.ML` PackageReference and `NightLightDetectionModel.zip` EmbeddedResource removed from `adrilight.csproj`
+7. `DiagnosticsViewModel.NightLightConfidenceDisplay` now shows "Night Light: ON / OFF / Unknown"
+8. 5 new tests in `NightLightDetectionTests.cs`; total tests 44/44
+9. Version bumped to 3.4.0
+
 ---
 
 ## Working Preferences
@@ -324,7 +336,7 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 - The app starts minimized to the system tray by default — check the tray if the window doesn't appear
 - `StartMinimized` is a user setting on the General Setup tab; the settings window always opens on first run or after a version change
 - `UserSettings.BaudRate` defaults to 1,000,000. Arduino sketch must be flashed to match.
-- The ML model for Night Light detection is embedded as a resource (`Resources/NightLightDetectionModel.zip`)
+- Night Light detection reads byte 18 of the CloudStore REG_BINARY blob at `HKCU\Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\DefaultAccount\Current\default$windows.data.bluelightreduction.bluelightreductionstate\windows.data.bluelightreduction.bluelightreductionstate`; `0x15` = ON, `0x13` = OFF, absent/other = Unknown
 - SharpDX assemblies are referenced directly from the NuGet cache via HintPath — not via PackageReference — because the netstandard build lacks `AcquireNextFrame`
 - The TCP control server listens on `127.0.0.1:5080`
 - Log files are written to `logs\` next to `adrilight.exe` — NLog is configured programmatically in `App.xaml.cs` (not `App.config`, which .NET 8 ignores for NLog)
