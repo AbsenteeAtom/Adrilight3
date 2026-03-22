@@ -14,7 +14,15 @@ namespace adrilight
 {
     class UserSettingsManager
     {
-        private string JsonPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "adrilight\\");
+        private readonly string _settingsFolder;
+
+        public UserSettingsManager(string settingsFolder = null)
+        {
+            _settingsFolder = settingsFolder
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "adrilight");
+        }
+
+        private string JsonPath => _settingsFolder;
 
         private string JsonFileNameAndPath => Path.Combine(JsonPath, "adrilight-settings.json");
 

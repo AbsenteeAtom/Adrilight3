@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace adrilight.Tests
@@ -6,10 +7,14 @@ namespace adrilight.Tests
     [TestClass]
     public class UserSettingsManagerTests
     {
+        private static string TempFolder() =>
+            Path.Combine(Path.GetTempPath(), "adrilight-tests-" + Guid.NewGuid());
+
         [TestMethod]
         public void Save_and_Load_work()
         {
-            var manager = new UserSettingsManager();
+            var folder = TempFolder();
+            var manager = new UserSettingsManager(folder);
 
             var settings = manager.LoadIfExists() ?? manager.MigrateOrDefault();
 
@@ -26,7 +31,7 @@ namespace adrilight.Tests
         [TestMethod]
         public void Migration_works()
         {
-            var manager = new UserSettingsManager();
+            var manager = new UserSettingsManager(TempFolder());
 
             var settings = manager.MigrateOrDefault();
         }
@@ -54,7 +59,7 @@ namespace adrilight.Tests
         [TestMethod]
         public void Migration_v2_to_v3_clamps_corrupt_whitebalance_values()
         {
-            var manager = new UserSettingsManager();
+            var manager = new UserSettingsManager(TempFolder());
             var settings = new UserSettings();
 
             // Bypass setter clamping by using the migration read-back pattern:
