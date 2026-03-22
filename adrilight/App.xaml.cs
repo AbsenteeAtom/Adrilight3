@@ -32,6 +32,7 @@ namespace adrilight
         private bool _screenSaverWasActive = false;
         private DispatcherTimer _screenSaverTimer;
         private Util.SleepWakeController _sleepWakeController;
+        private ViewModel.DiagnosticsViewModel _diagnosticsViewModel;
 
         protected override void OnStartup(StartupEventArgs startupEvent)
         {
@@ -58,13 +59,14 @@ namespace adrilight
                 return;
             }
 
+            _diagnosticsViewModel = new ViewModel.DiagnosticsViewModel();
             SetupLogging();
             SetupLoggingForProcessWideEvents();
 
             base.OnStartup(startupEvent);
 
             _log.Debug($"adrilight {VersionNumber}: Main() started.");
-            kernel = SetupDependencyInjection(false);
+            kernel = SetupDependencyInjection(false, _diagnosticsViewModel);
 
             this.Resources["Locator"] = new ViewModelLocator(kernel);
 
@@ -107,7 +109,8 @@ namespace adrilight
             LogManager.Shutdown();
         }
 
-        internal static IKernel SetupDependencyInjection(bool isInDesignMode)
+        internal static IKernel SetupDependencyInjection(bool isInDesignMode,
+            ViewModel.DiagnosticsViewModel diagnosticsViewModel = null)
         {
             var kernel = new StandardKernel();
             if (isInDesignMode)
@@ -129,6 +132,9 @@ namespace adrilight
                 kernel.Bind<IDesktopDuplicatorReader>().To<DesktopDuplicatorReader>().InSingletonScope();
             }
 
+            kernel.Bind<ViewModel.DiagnosticsViewModel>()
+                  .ToConstant(diagnosticsViewModel ?? new ViewModel.DiagnosticsViewModel())
+                  .InSingletonScope();
             kernel.Bind<SettingsViewModel>().ToSelf().InSingletonScope();
             kernel.Bind(x => x.FromThisAssembly()
                 .SelectAllClasses()
@@ -270,6 +276,11 @@ namespace adrilight
             };
             config.AddTarget(nightLightTarget);
             config.AddRule(LogLevel.Debug, LogLevel.Fatal, nightLightTarget, "adrilight.Util.NightLightDetection");
+
+            // In-memory target for the Diagnostics UI — Info+ so the filter can drill down
+            var observableTarget = new Util.ObservableCollectionNLogTarget(_diagnosticsViewModel);
+            config.AddTarget(observableTarget);
+            config.AddRule(LogLevel.Info, LogLevel.Fatal, observableTarget, "*");
 
             LogManager.Configuration = config;
             _log.Info($"adrilight {VersionNumber} logging initialised. Log folder: {logsDir}");

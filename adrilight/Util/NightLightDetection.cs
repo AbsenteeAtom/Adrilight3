@@ -83,6 +83,8 @@ namespace adrilight.Util
                         try
                         {
                             _settingsViewModel.IsInNightLightMode = IsWindowsInNightLightMode();
+                            // NightLightProbability is set inside IsWindowsInNightLightMode via _lastProbability
+                            _settingsViewModel.NightLightProbability = _lastProbability;
                         }
                         catch (Exception ex)
                         {
@@ -100,6 +102,7 @@ namespace adrilight.Util
 
         private byte[] _lastData;
         private bool _lastResult;
+        private float _lastProbability;
         Microsoft.ML.MLContext _context;
         Microsoft.ML.Data.TransformerChain<Microsoft.ML.ITransformer> _model;
         private PredictionEngine<NightLightDataRow, NightLightState> _predictor;
@@ -148,6 +151,7 @@ namespace adrilight.Util
 
                 _lastData = data;
                 _lastResult = predicted.PredictedLabel;
+                _lastProbability = predicted.Probability;
 
                 return predicted.PredictedLabel;
             }

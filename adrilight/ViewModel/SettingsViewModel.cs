@@ -29,9 +29,10 @@ namespace adrilight.ViewModel
         private const string IssuesPage = "https://github.com/AbsenteeAtom/Adrilight3/issues";
         private const string NightlightMdPage = "https://github.com/AbsenteeAtom/Adrilight3/blob/main/NightlightDetection.md";
         private const string LatestReleasePage = "https://github.com/AbsenteeAtom/Adrilight3/releases";
+        private const string InstallationGuidePage = "https://github.com/AbsenteeAtom/Adrilight3/blob/main/INSTALLATION.md";
 
         public SettingsViewModel(IUserSettings userSettings, IList<ISelectableViewPart> selectableViewParts,
-            ISpotSet spotSet, IContext context, ISerialStream serialStream)
+            ISpotSet spotSet, IContext context, ISerialStream serialStream, DiagnosticsViewModel diagnostics)
         {
             if (selectableViewParts == null) throw new ArgumentNullException(nameof(selectableViewParts));
 
@@ -39,6 +40,7 @@ namespace adrilight.ViewModel
             this.spotSet = spotSet ?? throw new ArgumentNullException(nameof(spotSet));
             Context = context ?? throw new ArgumentNullException(nameof(context));
             this.serialStream = serialStream ?? throw new ArgumentNullException(nameof(serialStream));
+            Diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
             SelectableViewParts = selectableViewParts.OrderBy(p => p.Order).ToList();
 
 #if DEBUG
@@ -92,6 +94,7 @@ namespace adrilight.ViewModel
         }
 
         public string Title { get; } = $"adrilight {App.VersionNumber}";
+        public DiagnosticsViewModel Diagnostics { get; }
         public int LedCount => SpotSet.CountLeds(Settings.SpotsX, Settings.SpotsY);
 
         public bool TransferCanBeStarted => serialStream.IsValid();
@@ -196,7 +199,17 @@ namespace adrilight.ViewModel
         public ICommand OpenUrlIssuesPageCommand { get; } = new RelayCommand(() => OpenUrl(IssuesPage));
         public ICommand OpenNightlightMdPageCommand { get; } = new RelayCommand(() => OpenUrl(NightlightMdPage));
         public ICommand OpenUrlLatestReleaseCommand { get; } = new RelayCommand(() => OpenUrl(LatestReleasePage));
+        public ICommand OpenUrlInstallationGuideCommand { get; } = new RelayCommand(() => OpenUrl(InstallationGuidePage));
         public ICommand ExitAdrilight { get; } = new RelayCommand(() => App.Current.Shutdown(0));
+        public ICommand NavigateToDiagnosticsCommand => new RelayCommand(() =>
+        {
+            var diagPart = SelectableViewParts.FirstOrDefault(p => p.ViewPartName == "Diagnostics");
+            if (diagPart != null)
+            {
+                SelectedViewPart = diagPart;
+                Diagnostics.Acknowledge();
+            }
+        });
 
         private static void OpenUrl(string url) => Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
 
@@ -248,10 +261,36 @@ namespace adrilight.ViewModel
             {
                 SetProperty(ref _isInNightLightMode, value);
                 OnPropertyChanged(nameof(IsInDaylightLightMode));
+                UpdateNightLightConfidenceDisplay();
             }
         }
 
         public bool IsInDaylightLightMode => !_isInNightLightMode;
+
+        private float _nightLightProbability;
+        public float NightLightProbability
+        {
+            get => _nightLightProbability;
+            set
+            {
+                SetProperty(ref _nightLightProbability, value);
+                UpdateNightLightConfidenceDisplay();
+            }
+        }
+
+        private void UpdateNightLightConfidenceDisplay()
+        {
+            var state = _isInNightLightMode ? "ON" : "OFF";
+            string display;
+            if (_nightLightProbability == 0f)
+                display = $"Night Light: {state}";
+            else if (_nightLightProbability <= 0.9f && _nightLightProbability >= 0.1f)
+                display = $"Night Light: {state} — UNCERTAIN ({(int)(_nightLightProbability * 100)}% confidence)";
+            else
+                display = $"Night Light: {state} ({(int)(_nightLightProbability * 100)}% confidence)";
+
+            Diagnostics?.UpdateNightLightDisplay(display);
+        }
 
         public IDictionary<AlternateWhiteBalanceModeEnum, string> AlternateWhiteBalanceModes { get; } =
             new SortedDictionary<AlternateWhiteBalanceModeEnum, string>()

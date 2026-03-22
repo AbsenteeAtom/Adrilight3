@@ -4,7 +4,7 @@
 
 > An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
 
-**adrilight 3.2.1 — AbsenteeAtom Edition**
+**adrilight 3.3.0 — AbsenteeAtom Edition**
 Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
 The original author retired the project; this fork modernises it for .NET 8 and adds new features.
 
@@ -41,6 +41,12 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 ---
 
 ## What's new
+
+### 3.3.0
+
+- **Diagnostics tab** — new in-app log viewer showing the last 200 log entries, filterable by All / Warnings+ / Errors+; Mark as read button resets the indicator
+- **Toolbar status indicator** — unobtrusive icon in the top bar turns amber on warnings or red on errors; tooltip describes the state; click jumps straight to the Diagnostics tab
+- **Night Light confidence display** — Diagnostics tab shows the current Night Light prediction and confidence level in real time, flagging uncertain readings (near 50%) so you can see when the ML model is unsure
 
 ### 3.2.1
 
@@ -179,10 +185,10 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 **Publish a local executable:**
 ```bash
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.2.1
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.3.0
 ```
 
-Output goes to `publish/adrilight-3.2.1/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
+Output goes to `publish/adrilight-3.3.0/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
 
 ---
 

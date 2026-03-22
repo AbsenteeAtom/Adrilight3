@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.2.1 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.3.0 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -38,7 +38,7 @@ adrilight.Tests/
   SleepWakeTests.cs              — SleepWakeController suspend/resume state machine (5 tests)
 ```
 
-Total tests: **29/29 passing**
+Total tests: **39/39 passing**
 
 ### Running tests
 ```
@@ -290,6 +290,20 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 3. Confirmed both log files created and writing correctly on first launch of published build
 4. All 29 tests passing
 5. Version bumped to 3.2.1
+
+### 2026-03-22 — Diagnostics feature + toolbar status indicator (v3.3.0)
+1. `LogEntry` model added (`ViewModel/LogEntry.cs`) — timestamp, level, short logger name, message
+2. `DiagnosticsViewModel` added (`ViewModel/DiagnosticsViewModel.cs`) — in-memory ring buffer (max 200), ratcheting `DiagnosticStatus` (Ok/Warning/Error), filter (All/Warn+/Error+), `Acknowledge()`, `NightLightConfidenceDisplay`
+3. `ObservableCollectionNLogTarget` added (`Util/ObservableCollectionNLogTarget.cs`) — NLog `Target` subclass that pushes entries into `DiagnosticsViewModel`; registered in `App.SetupLogging()` at Info+
+4. `Diagnostics.xaml` view added with Night Light status card and log viewer ListBox (colour-coded by level)
+5. `DiagnosticsSelectableViewPart` added — `Order = -45` (after About, before other tabs)
+6. `SettingsViewModel` extended: `Diagnostics` property, `NavigateToDiagnosticsCommand`, `NightLightProbability`, `UpdateNightLightConfidenceDisplay()`, `OpenUrlInstallationGuideCommand`
+7. `NightLightDetection` extended: `_lastProbability` field, sets `SettingsViewModel.NightLightProbability` after each prediction
+8. `App.xaml.cs`: `_diagnosticsViewModel` instance created before `SetupLogging()`; passed to DI container via `ToConstant`; `ObservableCollectionNLogTarget` wired in `SetupLogging()`
+9. Toolbar status indicator added to `SettingsWindow.xaml` — PackIcon with DataTriggers for Ok/Warning/Error states; tooltip bound to `Diagnostics.StatusTooltip`; click navigates to Diagnostics tab
+10. Installation Guide added to kebab menu (between Project Page and I have an issue)
+11. 10 new tests in `DiagnosticsViewModelTests.cs`; total tests 39/39
+12. Version bumped to 3.3.0
 
 ---
 
