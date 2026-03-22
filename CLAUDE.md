@@ -391,7 +391,7 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 - The app starts minimized to the system tray by default — check the tray if the window doesn't appear
 - `StartMinimized` is a user setting on the General Setup tab; the settings window always opens on first run or after a version change
 - `UserSettings.BaudRate` defaults to 1,000,000. Arduino sketch must be flashed to match.
-- Night Light detection reads byte 18 of the CloudStore REG_BINARY blob at `HKCU\Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\DefaultAccount\Current\default$windows.data.bluelightreduction.bluelightreductionstate\windows.data.bluelightreduction.bluelightreductionstate`; `0x15` = ON, `0x13` = OFF, absent/other = Unknown
+- Night Light detection reads byte 18 of the CloudStore REG_BINARY blob at `HKCU\Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\DefaultAccount\Current\default$windows.data.bluelightreduction.bluelightreductionstate\windows.data.bluelightreduction.bluelightreductionstate`. Known ON values: `0x15` (some Windows builds), `0x12` (others). Known OFF values: `0x13`, `0x10`. Different Windows versions produce different base byte values at position 18 for the same Night Light state; in all observed cases ON = OFF + 2. Absent/too-short data returns Unknown. The full blob is logged (Debug) on every change to aid future diagnosis.
 - SharpDX assemblies are referenced directly from the NuGet cache via HintPath — not via PackageReference — because the netstandard build lacks `AcquireNextFrame`
 - The TCP control server listens on `127.0.0.1:5080`
 - Log files are written to `logs\` next to `adrilight.exe` — NLog is configured programmatically in `App.xaml.cs` (not `App.config`, which .NET 8 ignores for NLog)

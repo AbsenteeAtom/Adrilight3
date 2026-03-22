@@ -17,7 +17,15 @@ namespace adrilight.Tests
         [TestMethod]
         public void ParseRegistryData_Byte18_0x15_ReturnsOn()
         {
+            // 0x15: ON indicator observed on some Windows builds
             Assert.AreEqual(NightLightState.On, NightLightDetection.ParseRegistryData(MakeData(0x15)));
+        }
+
+        [TestMethod]
+        public void ParseRegistryData_Byte18_0x12_ReturnsOn()
+        {
+            // 0x12: ON indicator observed on other Windows builds (same Bond field, different base value)
+            Assert.AreEqual(NightLightState.On, NightLightDetection.ParseRegistryData(MakeData(0x12)));
         }
 
         [TestMethod]
@@ -27,18 +35,22 @@ namespace adrilight.Tests
         }
 
         [TestMethod]
+        public void ParseRegistryData_Byte18_0x10_ReturnsOff()
+        {
+            Assert.AreEqual(NightLightState.Off, NightLightDetection.ParseRegistryData(MakeData(0x10)));
+        }
+
+        [TestMethod]
         public void ParseRegistryData_NullData_ReturnsUnknown()
         {
             Assert.AreEqual(NightLightState.Unknown, NightLightDetection.ParseRegistryData(null));
         }
 
         [TestMethod]
-        public void ParseRegistryData_AnyByteOtherThan0x15_ReturnsOff()
+        public void ParseRegistryData_UnknownByte_ReturnsOff()
         {
-            // All non-0x15 values are valid "field absent" states in the Bond encoding — treat as OFF
+            // Any byte other than the known ON values (0x15, 0x12) is treated as OFF
             Assert.AreEqual(NightLightState.Off, NightLightDetection.ParseRegistryData(MakeData(0xFF)));
-            Assert.AreEqual(NightLightState.Off, NightLightDetection.ParseRegistryData(MakeData(0x13)));
-            Assert.AreEqual(NightLightState.Off, NightLightDetection.ParseRegistryData(MakeData(0x10)));
         }
 
         [TestMethod]

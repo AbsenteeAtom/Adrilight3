@@ -125,7 +125,8 @@ namespace adrilight.Util
             _lastData = data;
             _lastState = ParseRegistryData(data);
 
-            _log.Debug($"Night Light state: {_lastState} (byte[18]=0x{data[18]:X2})");
+            var hex = BitConverter.ToString(data).Replace("-", " ");
+            _log.Debug($"Night Light state: {_lastState} (byte[18]=0x{data[18]:X2}) blob={hex}");
 
             return _lastState;
         }
@@ -133,7 +134,9 @@ namespace adrilight.Util
         /// <summary>
         /// Pure parsing function — testable without registry access or SettingsViewModel.
         /// Reads byte 18 of the CloudStore REG_BINARY blob.
-        /// 0x15 means the Bond "enabled" field is present → Night Light ON.
+        /// Known ON values: 0x15 (observed on some Windows builds), 0x12 (observed on others).
+        /// Different Windows versions produce different base byte values at this position,
+        /// but both indicate the Bond "enabled" field is present → Night Light ON.
         /// Any other value means the field is absent → Night Light OFF.
         /// Only null or too-short data returns Unknown.
         /// </summary>
@@ -142,7 +145,7 @@ namespace adrilight.Util
             if (data == null || data.Length <= 18)
                 return NightLightState.Unknown;
 
-            return data[18] == 0x15 ? NightLightState.On : NightLightState.Off;
+            return (data[18] == 0x15 || data[18] == 0x12) ? NightLightState.On : NightLightState.Off;
         }
 
         private static bool DataEqual(byte[] a, byte[] b)
