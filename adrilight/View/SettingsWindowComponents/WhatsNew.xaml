@@ -134,9 +134,7 @@
                     filterable view (All / Warnings+ / Errors+) and a Mark as read button.
                 </TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
-                    ● Night Light detection status shown in real time — displays current prediction and
-                    confidence level, flagging uncertain predictions (near 50%) so you know when the
-                    ML model is unsure.
+                    ● Night Light detection status shown in real time on the Diagnostics tab.
                 </TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
                     ● Installation Guide added to the ⋮ menu for quick access to hardware setup documentation.
@@ -169,12 +167,17 @@
 
                 <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.4.1</TextBlock>
 
-                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fix</TextBlock>
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fixes</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Fixed: White Balance slider values could be saved above 100 after some sessions
+                    due to a MaterialDesign discrete-slider layout quirk. All six white balance setters
+                    now clamp to [1, 100]; a settings migration automatically repairs any previously
+                    saved corrupt value on first launch.
+                </TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
-                    ● Fixed: White Balance Blue slider could show an incorrect value (above 100) after
-                    some sessions due to a MaterialDesign discrete-slider layout quirk writing back an
-                    out-of-range value. All six white balance setters now clamp to [1, 100]; a settings
-                    migration automatically repairs any previously saved corrupt value on first launch.
+                    ● Fixed: White Balance page mode icons (Forced On / Auto detect / Forced Off) were
+                    misaligned vertically relative to their label text. Icons now correctly line up
+                    with their corresponding labels.
                 </TextBlock>
             </StackPanel>
         </materialDesign:Card>

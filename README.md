@@ -4,7 +4,7 @@
 
 > An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
 
-**adrilight 3.4.0 — AbsenteeAtom Edition**
+**adrilight 3.4.1 — AbsenteeAtom Edition**
 Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
 The original author retired the project; this fork modernises it for .NET 8 and adds new features.
 
@@ -42,6 +42,12 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 
 ## What's new
 
+### 3.4.1
+
+- **White balance slider corruption fix** — all six white balance setters now clamp values to [1, 100]; a MaterialDesign discrete-slider layout quirk could write back out-of-range values in some sessions. A settings migration automatically repairs any previously saved corrupt value on first launch
+- **White Balance page icon alignment** — mode icons (Forced On / Auto detect / Forced Off) are now correctly aligned with their label text; the grid row heights were changed from proportional to auto and icon margins unified
+- **Test isolation** — `UserSettingsManager` and `App.SetupDependencyInjection` now accept an optional settings folder parameter so tests run in isolated temp directories and never touch the real settings file
+
 ### 3.4.0
 
 - **Night Light detection rewritten** — state is now read directly from the Windows registry (byte 18 of the CloudStore REG_BINARY blob); result is a definitive ON / OFF / Unknown with no ML model, no probability scores, and no uncertainty warnings
@@ -57,7 +63,7 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 
 - **Diagnostics tab** — new in-app log viewer showing the last 200 log entries, filterable by All / Warnings+ / Errors+; Mark as read button resets the indicator
 - **Toolbar status indicator** — unobtrusive icon in the top bar turns amber on warnings or red on errors; tooltip describes the state; click jumps straight to the Diagnostics tab
-- **Night Light confidence display** — Diagnostics tab shows the current Night Light prediction and confidence level in real time, flagging uncertain readings (near 50%) so you can see when the ML model is unsure
+- **Night Light detection status** — Diagnostics tab shows the current Night Light state in real time
 
 ### 3.2.1
 
@@ -196,10 +202,10 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 **Publish a local executable:**
 ```bash
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.4.0
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.4.1
 ```
 
-Output goes to `publish/adrilight-3.4.0/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
+Output goes to `publish/adrilight-3.4.1/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
 
 ---
 

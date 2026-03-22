@@ -59,7 +59,7 @@ The `publish/` folder is excluded from git via `.gitignore`.
 1. Run the publish command above to produce the release folder.
 2. Copy the Arduino sketch into the publish folder, preserving its subfolder:
    ```
-   Arduino/adrilight/adrilight.ino  →  publish/adrilight-3.4.0/Arduino/adrilight/adrilight.ino
+   Arduino/adrilight/adrilight.ino  →  publish/adrilight-3.4.1/Arduino/adrilight/adrilight.ino
    ```
 3. Verify the `.exe` file version is correctly stamped (right-click → Properties → Details).
 4. Zip the entire `publish/adrilight-X.Y.Z/` folder as `adrilight-X.Y.Z.zip`.
@@ -105,7 +105,7 @@ while running:
   ```
 - **IsDirty cleared inside lock** — `SpotSet.IsDirty = false` is set inside `lock(SpotSet.Lock)` before reading spot colours, ensuring the flag is always cleared atomically with the colour snapshot. A frame cannot be missed.
 - **Baud rate in UserSettings** — `UserSettings.BaudRate` (default 1,000,000) is read by `SerialStream`. If the user changes it the port is reopened. Arduino sketch must be flashed to match.
-- **Version migration in UserSettingsManager** — `ApplyMigrations()` is called after settings deserialization. Migration v1→v2: `SpotsY -= 2`, `ConfigFileVersion = 2`. Future migrations go here, not in `App.xaml.cs`.
+- **Version migration in UserSettingsManager** — `ApplyMigrations()` is called after settings deserialization. Migration v1→v2: `SpotsY -= 2`, `ConfigFileVersion = 2`. Migration v2→v3: all six whitebalance setters re-assigned through the clamping setter, `ConfigFileVersion = 3`. Future migrations go here, not in `App.xaml.cs`.
 
 ---
 
@@ -321,13 +321,15 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 8. 5 new tests in `NightLightDetectionTests.cs`; total tests 44/44
 9. Version bumped to 3.4.0
 
-### 2026-03-22 — WhitebalanceBlue corruption fix (v3.4.1)
+### 2026-03-22 — WhitebalanceBlue corruption fix + test isolation + icon alignment (v3.4.1)
 1. Root cause identified: `MaterialDesignDiscreteSlider` discrete-snap formula writes back `pixelPosition × tickFrequency` instead of the correct proportion, producing values above the slider Maximum (100). The observed values 135, 186, 206 correspond exactly to pixel positions 67, 92, 102 multiplied by `Width/(Maximum−Minimum) ≈ 2.02`.
 2. **Fix A (invariant):** All six whitebalance setters in `UserSettings` now clamp to `[1, 100]` via a private `Clamp()` helper — `Math.Clamp(value, (byte)1, (byte)100)`. Any out-of-range value written by the slider bug (or any other source) is silently clamped before reaching the backing field and JSON.
 3. **Fix B (repair):** `ApplyMigrations` v2→v3 step added: re-assigns all six whitebalance properties through the clamping setter, then sets `ConfigFileVersion = 3`. Repairs any already-corrupt value in an existing `adrilight-settings.json` on first launch after upgrade.
 4. **Pre-existing build warning fixed:** `UserSettings.cs` was missing `using System;`, causing a spurious `Guid` error in the WPF design-time temp project. Added the `using` directive.
 5. 3 new tests in `UserSettingsManagerTests.cs` (setter clamps above 100, clamps below 1, migration advances version); total tests 47/47
-6. Version bumped to 3.4.1
+6. **Test isolation fixed:** Tests were writing to the real `%LocalAppData%\adrilight\adrilight-settings.json`, corrupting user settings between runs. `UserSettingsManager` gained an optional `settingsFolder` constructor parameter (null → production path). `App.SetupDependencyInjection` gained a matching optional `settingsFolder` parameter forwarded to `UserSettingsManager`. All tests in `UserSettingsManagerTests` and `DependencyInjectionTests.RunTimeCreation_Works` now pass a unique `Path.GetTempPath()` subfolder.
+7. **White Balance mode icon alignment fixed:** Row heights changed from `1*` to `auto`; icon `VerticalAlignment` set to `Top` and top margins unified to `8px` (matching the label top margin); description TextBlocks given matching `8px` top margin. Removes the visual gap between icons and their labels.
+8. Version bumped to 3.4.1
 
 ---
 
