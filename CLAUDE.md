@@ -13,7 +13,6 @@ This is **adrilight 3.4.0 — AbsenteeAtom Edition**, forked from [fabsenet/adri
 - NLog for logging
 - SharpDX 4.2.0 (DXGI / Direct3D11) for screen capture — net45 DLL variants via direct HintPath
 - System.Reactive
-- Microsoft.ML for Night Light mode detection
 - MaterialDesignThemes v4.9.0
 
 ### Project layout
@@ -285,7 +284,7 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 1. **Root cause:** .NET 8 does not load the `<nlog>` section from `App.config` — log files were never created in the published build
 2. **Fix:** Replaced `SetupDebugLogging()` (Debug-only, DebuggerTarget only) with `SetupLogging()` that configures NLog programmatically at startup:
    - General file target: `logs/adrilight.log.YYYY-MM-DD.txt` — Info+ in Release, Debug+ in Debug
-   - NightLight-specific file target: `logs/adrilight.log.nightlight.YYYY-MM-DD.txt` — Debug+ always (captures low-confidence ML predictions)
+   - NightLight-specific file target: `logs/adrilight.log.nightlight.YYYY-MM-DD.txt` — Debug+ always (captures registry-read debug trace from `NightLightDetection`)
    - Debug builds additionally write to `DebuggerTarget` (VS Output window)
    - Encoding changed from iso-8859-2 to UTF-8
 3. Confirmed both log files created and writing correctly on first launch of published build
@@ -312,15 +311,26 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 3. Version bumped to 3.3.1
 
 ### 2026-03-22 — Replace ML Night Light detection with direct registry read (v3.4.0)
-1. `NightLightDetection.cs` rewritten — ML.NET inference replaced with registry read of CloudStore REG_BINARY blob; `byte[18] == 0x15` → On, `0x13` → Off, null/other → Unknown
-2. `INightLightRegistryReader` interface introduced for testability; `RegistryNightLightReader` is the production implementation
-3. `NightLightState` enum added (`Unknown / Off / On`) replacing the old ML prediction class of the same name
+1. `NightLightDetection.cs` rewritten — ML.NET inference replaced with registry read of CloudStore REG_BINARY blob; `byte[18] == 0x15` → On, any other value → Off, null/too-short → Unknown
+2. `INightLightRegistryReader` interface introduced for testability; `RegistryNightLightReader` is the production implementation; Ninject binding added to `SetupDependencyInjection` (was missing, caused startup crash before fix)
+3. `NightLightState` enum added (`Unknown / Off / On`) replacing the old ML prediction class
 4. `SettingsViewModel` simplified — `NightLightProbability` and `UpdateNightLightConfidenceDisplay()` removed; replaced by `UpdateNightLightState(NightLightState)`
 5. `Whitebalance.xaml` updated — "experimental" label and "Learn how it works" hyperlink removed; description updated to reflect registry read
 6. `Microsoft.ML` PackageReference and `NightLightDetectionModel.zip` EmbeddedResource removed from `adrilight.csproj`
 7. `DiagnosticsViewModel.NightLightConfidenceDisplay` now shows "Night Light: ON / OFF / Unknown"
 8. 5 new tests in `NightLightDetectionTests.cs`; total tests 44/44
 9. Version bumped to 3.4.0
+
+---
+
+## Outstanding Bugs
+
+### WhitebalanceBlue random value on restart
+- **Symptom:** The "Normal Day Light" Blue slider shows an incorrect value (observed: 135, ~186, ~206) after some restarts. Red and Green stay correct. Restarting again sometimes restores the correct value.
+- **Confirmed:** The corrupted value is written to `adrilight-settings.json` by a previous session — subsequent restarts just load the already-corrupt file. It is not loaded incorrectly; it was saved incorrectly.
+- **Suspected trigger:** Occurs after a version update (What's New page shown on startup). Consistent with `isNewVersion = true` → `OpenSettingsWindow()` called unconditionally before `_nightLightDetection` is started.
+- **Suspected cause:** Possibly a `NightLightState` enum serialisation/deserialisation interaction introduced in v3.4.0, or a MaterialDesignDiscreteSlider write-back during initial layout when the window is opened at startup before bindings fully stabilise. Root cause not yet identified.
+- **Investigation status:** Diagnostic logging added and confirmed (stack trace pointed to JSON deserialization on load, not a new write in the same session). Bug has not reproduced since diagnostics were added.
 
 ---
 

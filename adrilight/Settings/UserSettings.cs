@@ -1,7 +1,6 @@
 ﻿using adrilight.Settings;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Newtonsoft.Json;
-using System;
 
 namespace adrilight
 {
@@ -74,5 +73,6 @@ namespace adrilight
         public bool SleepWakeAwarenessEnabled { get => _sleepWakeAwarenessEnabled; set => SetProperty(ref _sleepWakeAwarenessEnabled, value); }
         public Guid InstallationId { get; set; } = Guid.NewGuid();
         public AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get => _alternateWhiteBalanceMode; set => SetProperty(ref _alternateWhiteBalanceMode, value); }
+
     }
 }
