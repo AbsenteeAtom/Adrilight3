@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.2.0 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.2.1 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -47,9 +47,9 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 ### Building a local executable
 ```
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.2.0
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.2.1
 ```
-Output goes to `publish/adrilight-3.2.0/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
+Output goes to `publish/adrilight-3.2.1/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
 The `publish/` folder is excluded from git via `.gitignore`.
 
 ### End-user installation guide
@@ -59,7 +59,7 @@ The `publish/` folder is excluded from git via `.gitignore`.
 1. Run the publish command above to produce the release folder.
 2. Copy the Arduino sketch into the publish folder, preserving its subfolder:
    ```
-   Arduino/adrilight/adrilight.ino  →  publish/adrilight-3.2.0/Arduino/adrilight/adrilight.ino
+   Arduino/adrilight/adrilight.ino  →  publish/adrilight-3.2.1/Arduino/adrilight/adrilight.ino
    ```
 3. Verify the `.exe` file version is correctly stamped (right-click → Properties → Details).
 4. Zip the entire `publish/adrilight-X.Y.Z/` folder as `adrilight-X.Y.Z.zip`.
@@ -280,6 +280,17 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 7. CLAUDE.md updated to reflect 3.2.0 state
 8. Version bumped to 3.2.0
 
+### 2026-03-22 — NLog fix + version bump (v3.2.1)
+1. **Root cause:** .NET 8 does not load the `<nlog>` section from `App.config` — log files were never created in the published build
+2. **Fix:** Replaced `SetupDebugLogging()` (Debug-only, DebuggerTarget only) with `SetupLogging()` that configures NLog programmatically at startup:
+   - General file target: `logs/adrilight.log.YYYY-MM-DD.txt` — Info+ in Release, Debug+ in Debug
+   - NightLight-specific file target: `logs/adrilight.log.nightlight.YYYY-MM-DD.txt` — Debug+ always (captures low-confidence ML predictions)
+   - Debug builds additionally write to `DebuggerTarget` (VS Output window)
+   - Encoding changed from iso-8859-2 to UTF-8
+3. Confirmed both log files created and writing correctly on first launch of published build
+4. All 29 tests passing
+5. Version bumped to 3.2.1
+
 ---
 
 ## Development Notes
@@ -290,4 +301,5 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 - The ML model for Night Light detection is embedded as a resource (`Resources/NightLightDetectionModel.zip`)
 - SharpDX assemblies are referenced directly from the NuGet cache via HintPath — not via PackageReference — because the netstandard build lacks `AcquireNextFrame`
 - The TCP control server listens on `127.0.0.1:5080`
+- Log files are written to `logs\` next to `adrilight.exe` — NLog is configured programmatically in `App.xaml.cs` (not `App.config`, which .NET 8 ignores for NLog)
 - Git identity for this repo: `user.name = AbsenteeAtom`, `user.email = psbeau@gmail.com`

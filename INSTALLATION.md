@@ -135,7 +135,7 @@ Windows assigns a COM port number to your Arduino automatically when you plug it
 
 ## Installing and running Adrilight
 
-1. Download **adrilight-3.2.0.zip** from the [Releases page](https://github.com/AbsenteeAtom/Adrilight3/releases).
+1. Download **adrilight-3.2.1.zip** from the [Releases page](https://github.com/AbsenteeAtom/Adrilight3/releases).
 2. Extract the zip to a permanent location — for example `C:\Program Files\adrilight` or a folder on your desktop. Avoid extracting to the Downloads folder directly, as files there may be cleaned up automatically.
 3. Install [.NET 8 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/8.0) if you have not already.
 4. Run **adrilight.exe**. The application starts minimised to the **system tray** (the icon area in the bottom-right corner of the taskbar next to the clock).
