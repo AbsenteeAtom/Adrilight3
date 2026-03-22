@@ -373,6 +373,12 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 
 ---
 
+## Development Principles
+
+- **Extract pure functions from pipeline logic.** When adding behaviour to the capture pipeline, pull any self-contained computation into a `static` (or otherwise side-effect-free) method that operates only on its parameters. This is what makes pipeline logic unit-testable without hardware: `DetectBlackBars` and `GetSamplingRectangle` are `internal static` methods on `DesktopDuplicatorReader` that operate on a `BitmapData` struct; `ParseRegistryData` is a `static` method on `NightLightDetection` that operates on a `byte[]`. Both are fully covered by tests that supply synthetic input data, with no GPU, no registry, and no running app required.
+
+---
+
 ## Working Preferences
 
 - **Discuss before implementing.** When given an instruction, briefly outline the proposed approach and flag any concerns or trade-offs before writing code. If there is a better way, say so — pushback is welcome. Do not blindly execute instructions.
