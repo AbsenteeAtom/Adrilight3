@@ -45,6 +45,40 @@ Total tests: **47/47 passing**
 dotnet test adrilight.Tests/adrilight.Tests.csproj
 ```
 
+### Test coverage and the hardware boundary
+
+The test suite covers all logic that does not require a live GPU or display output. The hard boundary is the DXGI/Direct3D11 layer inside `DesktopDuplicator`.
+
+**What is covered (47 tests):**
+
+| Test file | What it exercises |
+|---|---|
+| `SpotsetTests.cs` | `BoundsWalker`, `SpotSet.BuildSpots`, LED offset, mirroring |
+| `BlackBarDetectionTests.cs` | `DesktopDuplicatorReader.DetectBlackBars()` and `GetSamplingRectangle()` |
+| `SleepWakeTests.cs` | `SleepWakeController` suspend/resume state machine |
+| `NightLightDetectionTests.cs` | `NightLightDetection.ParseRegistryData` |
+| `UserSettingsManagerTests.cs` | Settings save/load/migrate, whitebalance clamping |
+| `DiagnosticsViewModelTests.cs` | `DiagnosticsViewModel` ring buffer, status ratchet, filtering |
+| `DependencyInjectionTests.cs` | Ninject container wiring (design-time and runtime) |
+
+`DetectBlackBars` and `GetSamplingRectangle` are declared `internal static` on `DesktopDuplicatorReader`. Tests call them directly, supplying a `BitmapData` obtained by locking a `System.Drawing.Bitmap` constructed in-process — no GPU involved.
+
+**What is excluded and why:**
+
+`DesktopDuplicator` (`DesktopDuplication/DesktopDuplicator.cs`) is entirely untested. Its constructor calls `new Factory1().GetAdapter1()` and `output1.DuplicateOutput(_device)` — both require a real DXGI-capable GPU and an active primary display output. There is no injection seam (no interface, no factory parameter) that would allow a fake frame source to be substituted. Attempting to instantiate it in a test process throws a `DesktopDuplicationException` or `SharpDXException`.
+
+The following methods in `DesktopDuplicatorReader` are also excluded:
+
+- `Run()` / `GetNextFrame()` — the capture loop; instantiates `DesktopDuplicator` directly and cannot be exercised without hardware
+- `ApplyColorCorrections()` — `private`; applies saturation threshold, white balance scaling, and gamma (linear/non-linear); not reachable from tests
+- `GetAverageColorOfRectangularRegion()` — `private unsafe`; walks pixel memory to compute average colour; not reachable from tests
+
+**Where the testable boundary is drawn:**
+
+The boundary is at the `BitmapData` struct (a pointer to CPU-side locked bitmap memory). Any method that takes a `BitmapData` as input can be tested by constructing a `System.Drawing.Bitmap`, painting it with known colours, locking it, and passing the result directly. This is precisely what `BlackBarDetectionTests` does, and it is why `DetectBlackBars` and `GetSamplingRectangle` have full test coverage despite living inside `DesktopDuplicatorReader`.
+
+Everything upstream of `BitmapData` — acquiring a frame from DXGI, building mip maps in the GPU, copying to a staging texture — requires real hardware and is covered only by manual end-to-end testing with the physical LED setup.
+
 ### Building a local executable
 ```
 dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.4.1
