@@ -29,30 +29,27 @@
         <materialDesign:Card Margin="4 4 2 4" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Stretch">
             <StackPanel Margin="38 8 8 8">
                 <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Margin="0 0 0 0" TextAlignment="Left" FontWeight="Bold">
-                    Why you need white balance and how to do it!
+                    Setting up white balance
                 </TextBlock>
                 <TextBlock Margin="8" TextWrapping="Wrap"  TextAlignment="Justify">
-                    If you think of some neutral white like a piece of paper, what color does it actually have? Well that depends on the light. Your TV or monitor can display a neutral white or grey also with a warm or cold tint making it more blueish like daylight or making it more yellowish like artifical lighting. Also the LED strip you are using may have its own tint as well.
+                    Your display outputs light with a colour tint — cool and bluish like daylight, or warm and yellowish like artificial light. Your LED strip may have its own tint too. White balance lets you match the LEDs to your display so they feel consistent.
                     <LineBreak />
                     <LineBreak />
-                    
-                    What you need to do is: 
+                    To calibrate:
                     <LineBreak />
-                    1. Make your room as dark as possible to reduce the interference from other light sources.
+                    1. Darken the room as much as possible to remove interference from other light sources.
                     <LineBreak />
-                    2. Setup your TV or monitor screen as you see fit.
+                    2. Set your display up as you normally would.
                     <LineBreak />
-                    3. Then display some grey content on the screen and adjust the sliders on this page until the color of the LEDs matches the color of your TV.
+                    3. Show some neutral grey content on screen and adjust the sliders until the LEDs match your display's colour.
                     <LineBreak />
                     <LineBreak />
-                    Bonus tip: try to leave the sliders as far on the right as you can. 
-                    Turning them too low will reduce maximum LED brightness and the overall dynamic range of the LEDs.
-                    At least one of them should always be on 100.
+                    Tip: these sliders control colour balance, not overall brightness. The relative values between Red, Green, and Blue are what matter — adjusting all three equally up or down just changes brightness without affecting the balance. Find the ratio that matches your display and LED strip, regardless of the absolute values.
                 </TextBlock>
             </StackPanel>
         </materialDesign:Card>
 
-        <materialDesign:PackIcon Kind="PollBox" Width="29" Height="29" Foreground="{DynamicResource MaterialDesignSecondaryLightBrush}"  Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" RenderTransformOrigin="0.5,0.5" Margin="12.2,20.2,0,0" />
+        <materialDesign:PackIcon Kind="InformationOutline" Width="29" Height="29" Foreground="{DynamicResource MaterialDesignSecondaryLightBrush}" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="12.2,20.2,0,0" />
 
         <materialDesign:Card Margin="4 4 2 4" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="1" VerticalAlignment="Stretch">
             <Grid Margin="38 28 8 38">
@@ -137,7 +134,7 @@
 
         <materialDesign:Card Margin="4 4 2 4" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Stretch">
             <StackPanel Margin="38 28 38 18">
-                <TextBlock FontWeight="bold">Controling alternate night light mode detection/usage:</TextBlock>
+                <TextBlock FontWeight="bold">Controlling alternate night light mode detection/usage:</TextBlock>
 
                 <TextBlock Margin="58 18 38 8" FontWeight="bold">Selected mode:</TextBlock>
                 <ComboBox Margin="58 0 0 40" 

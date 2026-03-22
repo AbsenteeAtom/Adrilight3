@@ -27,7 +27,7 @@
                                             Mode="PrimaryMid" DockPanel.Dock="Top">
                 <DockPanel>
                     <Image Source="Images/adrilight_icon.ico" DockPanel.Dock="Top"/>
-                    <TextBlock Padding="16" Text="{Binding Title}" TextAlignment="Center" />
+                    <TextBlock Padding="16" Text="Menu" TextAlignment="Center" />
                 </DockPanel>
             </materialDesign:ColorZone>
             <ListBox x:Name="DemoItemsListBox" Margin="0 16 0 16"  
