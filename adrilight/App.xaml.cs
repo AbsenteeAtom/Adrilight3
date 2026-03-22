@@ -7,8 +7,10 @@ using Ninject;
 using Ninject.Extensions.Conventions;
 using NLog;
 using NLog.Config;
+using NLog.Layouts;
 using NLog.Targets;
 using System;
+using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -56,7 +58,7 @@ namespace adrilight
                 return;
             }
 
-            SetupDebugLogging();
+            SetupLogging();
             SetupLoggingForProcessWideEvents();
 
             base.OnStartup(startupEvent);
@@ -211,15 +213,66 @@ namespace adrilight
             _screenSaverTimer.Start();
         }
 
-        [System.Diagnostics.Conditional("DEBUG")]
-        private void SetupDebugLogging()
+        private void SetupLogging()
         {
+            var logsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+            var fileLayout = Layout.FromString("${longdate} ${level:uppercase=true} ${logger} ${message} ${exception:format=tostring}");
+            var nightLightLayout = Layout.FromString("${assembly-version} ${longdate} ${level:uppercase=true} ${logger} ${message} ${exception:format=tostring}");
+
             var config = new LoggingConfiguration();
-            var debuggerTarget = new DebuggerTarget() { Layout = "${processtime} ${message:exceptionSeparator=\n\t:withException=true}" };
-            config.AddTarget("debugger", debuggerTarget);
-            config.LoggingRules.Add(new LoggingRule("*", LogLevel.Debug, debuggerTarget));
+
+#if DEBUG
+            // In Debug builds: log to the Visual Studio Output window as well
+            var debuggerTarget = new DebuggerTarget("debugger")
+            {
+                Layout = "${processtime} ${message:exceptionSeparator=\n\t:withException=true}"
+            };
+            config.AddTarget(debuggerTarget);
+            config.AddRule(LogLevel.Debug, LogLevel.Fatal, debuggerTarget, "*");
+#endif
+
+            // General file target — all loggers, Info and above in Release, Debug and above in Debug
+            var fileTarget = new FileTarget("file")
+            {
+                Layout = fileLayout,
+                FileName = Path.Combine(logsDir, "adrilight.log.${shortdate}.txt"),
+                ArchiveFileName = Path.Combine(logsDir, "archives", "adrilight.log.{#}.txt"),
+                ArchiveEvery = FileArchivePeriod.None,
+                ArchiveNumbering = ArchiveNumberingMode.DateAndSequence,
+                ArchiveAboveSize = 1048576,
+                ArchiveDateFormat = "yyyyMMdd",
+                MaxArchiveFiles = 10,
+                ConcurrentWrites = true,
+                KeepFileOpen = false,
+                Encoding = System.Text.Encoding.UTF8
+            };
+            config.AddTarget(fileTarget);
+#if DEBUG
+            config.AddRule(LogLevel.Debug, LogLevel.Fatal, fileTarget, "*");
+#else
+            config.AddRule(LogLevel.Info, LogLevel.Fatal, fileTarget, "*");
+#endif
+
+            // NightLight-specific file target — all levels so low-confidence predictions are captured
+            var nightLightTarget = new FileTarget("nightlight")
+            {
+                Layout = nightLightLayout,
+                FileName = Path.Combine(logsDir, "adrilight.log.nightlight.${shortdate}.txt"),
+                ArchiveFileName = Path.Combine(logsDir, "archives.nightlight", "adrilight.log.{#}.txt"),
+                ArchiveEvery = FileArchivePeriod.None,
+                ArchiveNumbering = ArchiveNumberingMode.DateAndSequence,
+                ArchiveAboveSize = 1048576,
+                ArchiveDateFormat = "yyyyMMdd",
+                MaxArchiveFiles = 10,
+                ConcurrentWrites = true,
+                KeepFileOpen = false,
+                Encoding = System.Text.Encoding.UTF8
+            };
+            config.AddTarget(nightLightTarget);
+            config.AddRule(LogLevel.Debug, LogLevel.Fatal, nightLightTarget, "adrilight.Util.NightLightDetection");
+
             LogManager.Configuration = config;
-            _log.Info("DEBUG logging set up!");
+            _log.Info($"adrilight {VersionNumber} logging initialised. Log folder: {logsDir}");
         }
 
         private SettingsWindow _mainForm;
