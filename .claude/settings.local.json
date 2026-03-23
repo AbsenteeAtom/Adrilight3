@@ -1,7 +1,22 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet test:*)"
+      "Bash(dotnet test:*)",
+      "Bash(git -C /c/DevProvects/adrilight add \"adrilight/View/SettingsWindowComponents/WhatsNew.xaml\")",
+      "Bash(git -C:*)",
+      "Bash(git -C /c/DevProvects/adrilight push origin main)",
+      "Bash(powershell -Command \"Stop-Process -Name adrilight -Force -ErrorAction SilentlyContinue; Write-Host ''stopped''\")",
+      "Bash(dotnet build:*)",
+      "Bash(find /c/DevProvects/adrilight/adrilight -name *Converter* -o -name *converter*)",
+      "Bash(Start-Process \"c:/DevProvects/adrilight/publish/adrilight-3.3.0/adrilight.exe\")",
+      "Bash(cmd.exe /c start \"\" \"c:/DevProvects/adrilight/publish/adrilight-3.3.0/adrilight.exe\")",
+      "Bash(powershell.exe -Command \"Stop-Process -Name adrilight -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1\")",
+      "Bash(dotnet publish:*)",
+      "Bash(cmd.exe /c start \"\" \"c:/DevProvects/adrilight/publish/adrilight-3.3.1/adrilight.exe\")",
+      "WebSearch",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:www.autohotkey.com)",
+      "Bash(git stash:*)"
     ]
   }
 }

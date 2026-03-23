@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "adrilight (Debug)",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/adrilight/bin/Debug/net8.0-windows/win-x64/adrilight.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/adrilight",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        }
+    ]
+}

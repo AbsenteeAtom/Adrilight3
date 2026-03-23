@@ -1,0 +1,2 @@
+adrilight.g.resources
+adrilight.Resources.NightLightDetectionModel.zip
