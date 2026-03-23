@@ -9,13 +9,14 @@ using static adrilight.Util.AudioCaptureReader;
 namespace adrilight.Tests
 {
     /// <summary>
-    /// Tests for AudioCaptureReader — physics-inspired colour-frequency model.
+    /// Tests for AudioCaptureReader — physics-inspired colour-frequency band model.
     ///
     /// Design:
-    ///   Each LED is assigned a random FFT bin (20 Hz–10 kHz).
-    ///   The bin's frequency is mapped logarithmically to a visible wavelength (700 nm → 400 nm),
-    ///   which is converted to an RGB colour via the Bruton approximation.
-    ///   Brightness tracks the FFT magnitude at the assigned bin (exponentially smoothed).
+    ///   The 20 Hz – 10 kHz range is divided into NBands (32) logarithmically-spaced bands.
+    ///   Each LED is randomly assigned to a band; the band's centre frequency is mapped
+    ///   logarithmically to a visible wavelength (700 nm red → 400 nm violet) and converted
+    ///   to an RGB colour via the Bruton approximation.  Brightness tracks the per-bin-average
+    ///   RMS energy of the FFT bins within the assigned band (exponentially smoothed).
     ///   Strong bass hits trigger a random reshuffle of all assignments (max once per second).
     ///
     /// Audio hardware is mocked via IAudioCaptureProvider.
@@ -224,24 +225,44 @@ namespace adrilight.Tests
             }
         }
 
-        // ── LowFrequency/HighFrequency colour check ───────────────────────────────
+        // ── Band model helpers ────────────────────────────────────────────────────
 
         [TestMethod]
-        public void LowFrequencyBin_HasWarmBaseColor()
+        public void BuildBands_Returns32Bands()
         {
-            // Bin near 60 Hz → wavelength near 700 nm → red dominant
-            int bin = FrequencyToBin(60f, 44100);
-            var (r, g, b) = BinToColor(bin, 44100);
-            Assert.IsTrue(r > b, $"60 Hz bin should produce a warmer (redder) colour than blue (R={r:F2}, B={b:F2})");
+            var bands = BuildBands(44100);
+            Assert.AreEqual(NBands, bands.Length, "BuildBands should return NBands frequency bands.");
         }
 
         [TestMethod]
-        public void HighFrequencyBin_HasCoolBaseColor()
+        public void BandBinLo_NonDecreasingAcrossBands()
         {
-            // Bin near 8000 Hz → wavelength near 430 nm → blue dominant
-            int bin = FrequencyToBin(8000f, 44100);
-            var (r, g, b) = BinToColor(bin, 44100);
-            Assert.IsTrue(b > r, $"8 kHz bin should produce a cooler (bluer) colour than red (R={r:F2}, B={b:F2})");
+            int prev = BandBinLo(0, 44100);
+            for (int b = 1; b < NBands; b++)
+            {
+                int lo = BandBinLo(b, 44100);
+                Assert.IsTrue(lo >= prev,
+                    $"BandBinLo should be non-decreasing: band {b} (lo={lo}) < band {b-1} (lo={prev})");
+                prev = lo;
+            }
+        }
+
+        [TestMethod]
+        public void LowBand_HasWarmColor()
+        {
+            // Band 0 centre ≈ 20 Hz → wavelength near 700 nm → red dominant
+            var (r, g, b) = WavelengthToRgb(FrequencyToWavelength(BandCenterFrequency(0)));
+            Assert.IsTrue(r > b,
+                $"Lowest band should produce a warmer (redder) colour (R={r:F2}, B={b:F2})");
+        }
+
+        [TestMethod]
+        public void HighBand_HasCoolColor()
+        {
+            // Band 31 centre ≈ 7700 Hz → wavelength near 430 nm → blue dominant
+            var (r, g, b) = WavelengthToRgb(FrequencyToWavelength(BandCenterFrequency(NBands - 1)));
+            Assert.IsTrue(b > r,
+                $"Highest band should produce a cooler (bluer) colour (R={r:F2}, B={b:F2})");
         }
 
         // ── Audio pipeline ────────────────────────────────────────────────────────
@@ -262,9 +283,10 @@ namespace adrilight.Tests
         }
 
         [TestMethod]
-        public void BurstAtAssignedFrequency_LightsUpSpot()
+        public void BurstAtAssignedBand_LightsUpSpot()
         {
-            // Feed a sine at exactly the frequency assigned to spot 0 — guaranteed to light it up.
+            // Feed a sine at the low-edge frequency of the band assigned to spot 0.
+            // Because the band covers a range of bins, energy in that bin drives the band level.
             int sampleRate = 44100;
             var (capture, getCallback) = MakeCapture(sampleRate: sampleRate);
             var (ss, getColor0, _)     = MakeSpotSet();
@@ -272,9 +294,10 @@ namespace adrilight.Tests
             var reader = MakeReader(MakeSettings(sensitivity: 80, smoothing: 1), ss, capture);
             reader.Start();
 
-            int   assignedBin = reader.SpotBins[0];
-            float freq        = assignedBin * sampleRate / (float)FftLength;
-            var   burst       = SineStereo(freq, sampleRate, amplitude: 1.0f);
+            int   bandIdx = reader.SpotBins[0];                          // band index (0-31)
+            int   binLo   = BandBinLo(bandIdx, sampleRate);              // lowest FFT bin in band
+            float freq    = binLo * sampleRate / (float)FftLength;       // Hz for that bin
+            var   burst   = SineStereo(freq, sampleRate, amplitude: 1.0f);
 
             // Feed enough frames for smoothing to reach a visible level
             for (int i = 0; i < 5; i++)
@@ -282,7 +305,7 @@ namespace adrilight.Tests
 
             var (r, g, b) = getColor0();
             Assert.IsTrue(r + g + b > 0,
-                $"Spot assigned to bin {assignedBin} ({freq:F0} Hz) should be lit after a burst at that frequency.");
+                $"Spot assigned to band {bandIdx} should be lit after a burst at {freq:F0} Hz (binLo={binLo}).");
         }
 
         [TestMethod]
@@ -300,11 +323,13 @@ namespace adrilight.Tests
             readerLow.Start();
             readerHigh.Start();
 
-            // Drive each reader with a sine at its own spot-0 assigned frequency
-            int binLow  = readerLow.SpotBins[0];
-            int binHigh = readerHigh.SpotBins[0];
-            var burstLow  = SineStereo(binLow  * sampleRate / (float)FftLength, sampleRate, 1.0f);
-            var burstHigh = SineStereo(binHigh * sampleRate / (float)FftLength, sampleRate, 1.0f);
+            // Drive each reader with a sine at the low-edge frequency of its spot-0 band
+            int   bandLow    = readerLow.SpotBins[0];
+            int   bandHigh   = readerHigh.SpotBins[0];
+            float freqLow    = BandBinLo(bandLow,  sampleRate) * sampleRate / (float)FftLength;
+            float freqHigh   = BandBinLo(bandHigh, sampleRate) * sampleRate / (float)FftLength;
+            var   burstLow   = SineStereo(freqLow,  sampleRate, 1.0f);
+            var   burstHigh  = SineStereo(freqHigh, sampleRate, 1.0f);
 
             for (int i = 0; i < 10; i++)
             {

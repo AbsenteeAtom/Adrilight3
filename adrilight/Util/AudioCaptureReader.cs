@@ -6,9 +6,22 @@ namespace adrilight.Util
 {
     /// <summary>
     /// Sound to Light pipeline. Captures WASAPI loopback audio, runs a 1024-point Hann-windowed
-    /// FFT each frame, assigns each LED a random frequency bin from the 20 Hz–10 kHz range, and
-    /// colours that LED using the visible-spectrum wavelength for that bin's frequency (700 nm red
-    /// → 400 nm violet). On strong bass hits the assignments are reshuffled (max once per second).
+    /// FFT each frame, and maps visible-spectrum colours to the LEDs via a logarithmically-spaced
+    /// frequency band model:
+    ///
+    ///   • The 20 Hz – 10 kHz range is divided into <see cref="NBands"/> logarithmically-spaced
+    ///     bands.  Each band's colour is derived from its centre wavelength (700 nm red → 400 nm
+    ///     violet) using the Bruton visible-spectrum approximation.
+    ///
+    ///   • Each LED is randomly assigned to one of the bands.  With 458 LEDs and 32 bands, ~14
+    ///     LEDs share each band, so whenever a band has energy a cluster of same-coloured LEDs
+    ///     lights up.
+    ///
+    ///   • Band energy = per-bin-average RMS of the FFT magnitudes within the band's bin range,
+    ///     normalised to the single-bin reference (0.25) so Sensitivity behaves the same as
+    ///     before regardless of band width.
+    ///
+    ///   • On a strong bass hit the LED→band assignments are randomly reshuffled (≤ once/second).
     ///
     /// The audio hardware boundary is isolated behind <see cref="IAudioCaptureProvider"/>;
     /// AudioCaptureReader is fully testable without a real audio device.
@@ -18,29 +31,44 @@ namespace adrilight.Util
         private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
 
         internal const int FftLength = 1024; // must be a power of 2
+        internal const int NBands    = 32;   // logarithmically-spaced bands, 20 Hz – 10 kHz
 
         // Precomputed Hann window: w[i] = 0.5 * (1 - cos(2π·i / (N-1)))
         private static readonly float[] HannWindow = Enumerable.Range(0, FftLength)
             .Select(i => 0.5f * (1f - MathF.Cos(2f * MathF.PI * i / (FftLength - 1))))
             .ToArray();
 
-        private readonly IUserSettings _settings;
-        private readonly ISpotSet _spotSet;
+        // ── Band descriptor ──────────────────────────────────────────────────────
+
+        /// <summary>A contiguous range of FFT bins with a pre-computed visible-spectrum colour.</summary>
+        internal struct FreqBand
+        {
+            public int BinLo, BinHi;                    // half-open range [BinLo, BinHi)
+            public (float r, float g, float b) Color;   // Bruton wavelength RGB, components 0–1
+        }
+
+        // ── Instance fields ──────────────────────────────────────────────────────
+
+        private readonly IUserSettings        _settings;
+        private readonly ISpotSet             _spotSet;
         private readonly IAudioCaptureProvider _capture;
-        private readonly Random _rng = new Random();
+        private readonly Random               _rng = new Random();
 
         // Mono sample accumulation buffer
         private readonly float[] _monoBuffer = new float[FftLength];
         private int _bufferPos;
 
         // Per-spot state — replaced atomically on each reshuffle
-        private int[] _spotBins;                               // FFT bin index assigned to each spot
-        private (float r, float g, float b)[] _spotBaseColors; // wavelength-derived colour (0–1)
-        private float[] _spotSmoothed;                         // per-spot smoothed brightness level
+        private int[]                          _spotBins;        // band index for each spot (0-based)
+        private (float r, float g, float b)[]  _spotBaseColors;  // colour from assigned band
+        private float[]                        _spotSmoothed;    // per-spot smoothed brightness
+
+        // Band definitions cached from the most recent reshuffle
+        private FreqBand[] _currentBands;
 
         // Beat detection state
-        private float _bassSmoothed;       // exponential average of bass energy
-        private long  _lastReshuffleMs;    // time of most recent reshuffle
+        private float _bassSmoothed;
+        private long  _lastReshuffleMs;
 
         private const int   ReshuffleRateLimitMs = 1000;
         private const float BassAttackAlpha      = 0.3f;
@@ -50,7 +78,7 @@ namespace adrilight.Util
 
         // ── Exposed for unit tests ───────────────────────────────────────────────
         internal int   ReshuffleCount { get; private set; }
-        internal int[] SpotBins       => _spotBins;
+        internal int[] SpotBins       => _spotBins;   // band indices, not raw FFT bins
 
         public LightingMode ModeId    => LightingMode.SoundToLight;
         public bool         IsRunning => _isRunning;
@@ -65,8 +93,8 @@ namespace adrilight.Util
         public void Start()
         {
             if (_isRunning) return;
-            _bufferPos      = 0;
-            _bassSmoothed   = 0f;
+            _bufferPos       = 0;
+            _bassSmoothed    = 0f;
             _lastReshuffleMs = 0;
             _isRunning = true;
             _capture.Start(OnAudioData);   // sets SampleRate / Channels
@@ -86,28 +114,27 @@ namespace adrilight.Util
 
         private void ShuffleSpotAssignments()
         {
-            int sr     = _capture.SampleRate > 0 ? _capture.SampleRate : 48000;
-            int binMin = Math.Max(1, FrequencyToBin(20f, sr));
-            int binMax = Math.Min(FrequencyToBin(10000f, sr), FftLength / 2 - 1);
-            if (binMax <= binMin) binMax = binMin + 1;
+            int sr    = _capture.SampleRate > 0 ? _capture.SampleRate : 48000;
+            var bands = BuildBands(sr);
+            _currentBands = bands;
 
             var spots = _spotSet.Spots;
             int n     = spots.Length;
 
-            var newBins   = new int[n];
-            var newColors = new (float r, float g, float b)[n];
+            var newBandIdx = new int[n];
+            var newColors  = new (float r, float g, float b)[n];
 
             for (int i = 0; i < n; i++)
             {
-                int bin      = _rng.Next(binMin, binMax + 1);
-                newBins[i]   = bin;
-                newColors[i] = BinToColor(bin, sr);
+                int b        = _rng.Next(0, NBands);
+                newBandIdx[i] = b;
+                newColors[i]  = bands[b].Color;
             }
 
-            // Replace arrays atomically; callers that captured local refs keep a consistent view
-            _spotBins       = newBins;
+            // Replace arrays atomically; local refs captured before the swap stay consistent
+            _spotBins       = newBandIdx;
             _spotBaseColors = newColors;
-            _spotSmoothed   = new float[n];   // reset smoothing on reshuffle
+            _spotSmoothed   = new float[n];   // reset per-spot smoothing on reshuffle
             ReshuffleCount++;
         }
 
@@ -175,12 +202,13 @@ namespace adrilight.Util
         private void ApplyToSpots(NAudio.Dsp.Complex[] fftData)
         {
             var spots    = _spotSet.Spots;
-            var bins     = _spotBins;
+            var bands    = _currentBands;
+            var bandIdx  = _spotBins;
             var colors   = _spotBaseColors;
             var smoothed = _spotSmoothed;
 
-            if (bins == null || colors == null || smoothed == null ||
-                bins.Length != spots.Length) return;
+            if (bands == null || bandIdx == null || colors == null || smoothed == null ||
+                bandIdx.Length != spots.Length) return;
 
             byte  sens      = _settings.SoundToLightSensitivity;
             byte  smoothing = _settings.SoundToLightSmoothing;
@@ -190,19 +218,27 @@ namespace adrilight.Util
             int   limit     = fftData.Length / 2;
             const float reference = 0.25f;
 
+            // Compute per-band energy: per-bin-average RMS, normalised by the single-bin reference.
+            // Using per-bin average keeps sensitivity consistent regardless of band width.
+            var bandLevels = new float[NBands];
+            for (int b = 0; b < NBands; b++)
+            {
+                float energy   = 0f;
+                int   binCount = 0;
+                for (int bin = bands[b].BinLo; bin < bands[b].BinHi && bin < limit; bin++)
+                {
+                    energy += fftData[bin].X * fftData[bin].X + fftData[bin].Y * fftData[bin].Y;
+                    binCount++;
+                }
+                float rms     = binCount > 0 ? MathF.Sqrt(energy / binCount) : 0f;
+                bandLevels[b] = Math.Clamp(rms / reference * sensScale, 0f, 1f);
+            }
+
             lock (_spotSet.Lock)
             {
                 for (int i = 0; i < spots.Length; i++)
                 {
-                    int   b   = bins[i];
-                    float mag = 0f;
-                    if (b < limit)
-                    {
-                        float re = fftData[b].X, im = fftData[b].Y;
-                        mag = MathF.Sqrt(re * re + im * im);
-                    }
-
-                    float rawLevel = Math.Clamp(mag / reference * sensScale, 0f, 1f);
+                    float rawLevel = bandLevels[bandIdx[i]];
                     Smooth(ref smoothed[i], rawLevel, attack, decay);
 
                     var (r, g, bColor) = colors[i];
@@ -220,14 +256,53 @@ namespace adrilight.Util
         // ── Pure helper functions (internal static for testability) ──────────────
 
         /// <summary>
-        /// Maps an FFT bin to its visible-spectrum RGB colour (components 0–1) using a
-        /// logarithmic frequency → wavelength → Bruton RGB conversion.
+        /// Builds the <see cref="NBands"/> logarithmically-spaced frequency bands for the given
+        /// sample rate.  Each band's colour is derived from its geometric-mean frequency.
         /// </summary>
-        internal static (float r, float g, float b) BinToColor(int bin, int sampleRate)
+        internal static FreqBand[] BuildBands(int sampleRate)
         {
-            float hz = sampleRate > 0 ? bin * sampleRate / (float)FftLength : 20f;
-            return WavelengthToRgb(FrequencyToWavelength(Math.Clamp(hz, 20f, 10000f)));
+            var bands = new FreqBand[NBands];
+            for (int i = 0; i < NBands; i++)
+            {
+                float fLo     = BandLowFrequency(i);
+                float fHi     = BandLowFrequency(i + 1);
+                float fCenter = MathF.Sqrt(fLo * fHi);  // geometric mean
+
+                int binLo = Math.Max(1, FrequencyToBin(fLo, sampleRate));
+                int binHi = Math.Min(FrequencyToBin(fHi, sampleRate) + 1, FftLength / 2);
+                if (binHi <= binLo) binHi = binLo + 1;
+
+                bands[i] = new FreqBand
+                {
+                    BinLo = binLo,
+                    BinHi = binHi,
+                    Color = WavelengthToRgb(FrequencyToWavelength(Math.Clamp(fCenter, 20f, 10000f)))
+                };
+            }
+            return bands;
         }
+
+        /// <summary>Low-frequency edge of band <paramref name="bandIndex"/> in Hz (log scale).</summary>
+        internal static float BandLowFrequency(int bandIndex)
+        {
+            const float fMin = 20f, fMax = 10000f;
+            return fMin * MathF.Pow(fMax / fMin, (float)bandIndex / NBands);
+        }
+
+        /// <summary>Geometric-mean centre frequency of band <paramref name="bandIndex"/> in Hz.</summary>
+        internal static float BandCenterFrequency(int bandIndex)
+        {
+            float fLo = BandLowFrequency(bandIndex);
+            float fHi = BandLowFrequency(bandIndex + 1);
+            return MathF.Sqrt(fLo * fHi);
+        }
+
+        /// <summary>
+        /// Returns the lowest FFT bin index that belongs to band <paramref name="bandIndex"/>
+        /// at the given sample rate.  Useful in tests for generating a sine that falls in-band.
+        /// </summary>
+        internal static int BandBinLo(int bandIndex, int sampleRate)
+            => Math.Max(1, FrequencyToBin(BandLowFrequency(bandIndex), sampleRate));
 
         /// <summary>
         /// Maps a frequency in Hz to a visible-light wavelength in nm using a logarithmic scale.
@@ -270,19 +345,14 @@ namespace adrilight.Util
         internal static int FrequencyToBin(float hz, int sampleRate)
             => sampleRate > 0 ? (int)(hz * FftLength / sampleRate) : 0;
 
-        /// <summary>
-        /// Exponential smoothing attack coefficient.
-        /// Higher smoothing → lower alpha (slower rise).
-        /// </summary>
+        /// <summary>Exponential smoothing attack coefficient (higher smoothing → slower rise).</summary>
         internal static float AttackAlpha(byte smoothing)
         {
             float t = (101f - smoothing) / 100f;
             return t * 0.95f + 0.04f;
         }
 
-        /// <summary>
-        /// Exponential smoothing decay coefficient. Always slower than attack.
-        /// </summary>
+        /// <summary>Exponential smoothing decay coefficient (always slower than attack).</summary>
         internal static float DecayAlpha(byte smoothing)
         {
             float t = (101f - smoothing) / 100f;
