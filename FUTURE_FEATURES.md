@@ -30,10 +30,9 @@ This file documents planned features for future versions of adrilight. Each entr
 
 **Technical Notes:**
 - Completely independent of the screen capture pipeline — no screen frames are needed in this mode.
-- Requires a **mode manager** to switch cleanly between screen capture mode and audio reactive mode; both pipelines cannot run simultaneously without contention over the `SpotSet`.
+- ~~Requires a **mode manager** to switch cleanly between screen capture mode and audio reactive mode; both pipelines cannot run simultaneously without contention over the `SpotSet`.~~ **Done (v3.5.0):** `IModeManager` / `ModeManager` implemented. `SetMode(LightingMode.SoundToLight)` already accepted by the TCP API. The next step is implementing `AudioCaptureReader` as an `ILightingMode` and wiring it into `ModeManager.SetMode()`.
 - NAudio (WASAPI loopback) captures system audio output without requiring a microphone.
 - FFT maps frequency bands to LED positions: low bass frequencies → bottom LEDs, mid-range → sides, high frequencies → top, or user-configurable zone mapping.
-- The mode manager is a prerequisite for both Sound to Light and Gamer Mode and should be implemented first.
 
 ---
 
@@ -44,6 +43,8 @@ This file documents planned features for future versions of adrilight. Each entr
 **Origin:** Original idea
 
 **Complexity:** High
+
+**Prerequisites:** `IModeManager` / `ModeManager` implemented in v3.5.0. Sound to Light (the simpler audio mode) should be built and validated first before tackling Gamer Mode's blending and temporal sequencing.
 
 **Technical Notes:**
 

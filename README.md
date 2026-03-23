@@ -4,7 +4,7 @@
 
 > An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
 
-**adrilight 3.4.1 — AbsenteeAtom Edition**
+**adrilight 3.5.0 — AbsenteeAtom Edition**
 Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
 The original author retired the project; this fork modernises it for .NET 8 and adds new features.
 
@@ -41,6 +41,12 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 ---
 
 ## What's new
+
+### 3.5.0
+
+- **LEDs now resume correctly in all sleep/lock/screen-saver combinations** — a bug in earlier versions could leave the LEDs off after unlocking Windows if the screen saver had also activated while the session was locked. The session-lock and screen-saver inhibitors previously shared a single saved-state variable; whichever fired second would overwrite what the first had saved. Each inhibitor source is now tracked independently, so all of them must clear before the LEDs come back on, and the original on/off state is always preserved correctly
+- **Mode manager foundation** — an internal mode manager has been introduced to serve as the clean switching point for future lighting modes. The app continues to run in Screen Capture mode as it always has; the architecture is now in place to add Sound to Light and Gamer Mode without restructuring existing code
+- **TCP STATUS includes active mode** — the `STATUS` command now returns `{"status":"on","mode":"screen"}` so external integrations (such as Remote 7) can read both state and mode in one call. New `MODE SCREEN`, `MODE SOUND`, `MODE GAMER`, and `MODE STATUS` commands are also available for future use
 
 ### 3.4.1
 
@@ -163,13 +169,21 @@ adrilight listens on `127.0.0.1:5080` (loopback only) for plain-text commands. T
 
 Send a newline-terminated ASCII command; receive a JSON response:
 
-| Command  | Effect                         | Response               |
-|----------|--------------------------------|------------------------|
-| `ON`     | Turn LEDs on                   | `{"status":"on"}`      |
-| `OFF`    | Turn LEDs off                  | `{"status":"off"}`     |
-| `TOGGLE` | Toggle current on/off state    | `{"status":"on/off"}`  |
-| `STATUS` | Query current state            | `{"status":"on/off"}`  |
-| `EXIT`   | Gracefully shut down adrilight | `{"status":"exiting"}` |
+| Command       | Effect                              | Response                              |
+|---------------|-------------------------------------|---------------------------------------|
+| `ON`          | Turn LEDs on                        | `{"status":"on"}`                     |
+| `OFF`         | Turn LEDs off                       | `{"status":"off"}`                    |
+| `TOGGLE`      | Toggle current on/off state         | `{"status":"on"}` or `{"status":"off"}` |
+| `STATUS`      | Query state and active mode         | `{"status":"on","mode":"screen"}`     |
+| `MODE SCREEN` | Switch to screen capture mode       | `{"status":"ok","mode":"screen"}`     |
+| `MODE SOUND`  | Switch to sound reactive mode       | `{"status":"ok","mode":"sound"}`      |
+| `MODE GAMER`  | Switch to gamer mode                | `{"status":"ok","mode":"gamer"}`      |
+| `MODE STATUS` | Query active mode only              | `{"mode":"screen"}`                   |
+| `EXIT`        | Gracefully shut down adrilight      | `{"status":"exiting"}`                |
+
+Commands are case-insensitive. Mode values in responses are always lowercase: `screen`, `sound`, `gamer`.
+
+> **Note:** Sound to Light and Gamer Mode are not yet implemented. Sending `MODE SOUND` or `MODE GAMER` will switch the reported mode but the LEDs will continue to use screen capture until those pipelines are built.
 
 **Example (PowerShell):**
 ```powershell
@@ -179,7 +193,7 @@ $writer  = New-Object System.IO.StreamWriter($stream)
 $reader  = New-Object System.IO.StreamReader($stream)
 $writer.WriteLine("STATUS")
 $writer.Flush()
-$reader.ReadLine()   # returns {"status":"on"} or {"status":"off"}
+$reader.ReadLine()   # returns {"status":"on","mode":"screen"}
 $client.Close()
 ```
 
@@ -202,10 +216,10 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 **Publish a local executable:**
 ```bash
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.4.1
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.5.0
 ```
 
-Output goes to `publish/adrilight-3.4.1/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
+Output goes to `publish/adrilight-3.5.0/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
 
 ---
 
