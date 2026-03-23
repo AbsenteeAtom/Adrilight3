@@ -12,23 +12,27 @@ using System.Windows.Media.Imaging;
 using adrilight.ViewModel;
 using System.Runtime.InteropServices;
 using adrilight.Settings;
+using adrilight.Util;
 
 namespace adrilight
 {
     internal class DesktopDuplicatorReader : IDesktopDuplicatorReader
     {
         private readonly ILogger _log = LogManager.GetCurrentClassLogger();
+        private readonly IModeManager _modeManager;
 
-        public DesktopDuplicatorReader(IUserSettings userSettings, ISpotSet spotSet, SettingsViewModel settingsViewModel)
+        public DesktopDuplicatorReader(IUserSettings userSettings, ISpotSet spotSet, SettingsViewModel settingsViewModel, IModeManager modeManager)
         {
             UserSettings = userSettings ?? throw new ArgumentNullException(nameof(userSettings));
             SpotSet = spotSet ?? throw new ArgumentNullException(nameof(spotSet));
             SettingsViewModel = settingsViewModel ?? throw new ArgumentNullException(nameof(settingsViewModel));
+            _modeManager = modeManager ?? throw new ArgumentNullException(nameof(modeManager));
             _retryPolicy = Policy.Handle<Exception>()
                 .WaitAndRetryForever(ProvideDelayDuration);
 
             UserSettings.PropertyChanged += PropertyChanged;
             SettingsViewModel.PropertyChanged += PropertyChanged;
+            _modeManager.PropertyChanged += PropertyChanged;
             RefreshCapturingState();
 
             _log.Info($"DesktopDuplicatorReader created.");
@@ -42,6 +46,7 @@ namespace adrilight
                 case nameof(UserSettings.IsPreviewEnabled):
                 case nameof(SettingsViewModel.IsSettingsWindowOpen):
                 case nameof(SettingsViewModel.IsPreviewTabOpen):
+                case nameof(IModeManager.ActiveMode):
                     RefreshCapturingState();
                     break;
             }
@@ -53,8 +58,9 @@ namespace adrilight
         private void RefreshCapturingState()
         {
             var isRunning = _cancellationTokenSource != null && RunState == RunStateEnum.Running;
-            var shouldBeRunning = UserSettings.TransferActive
-                    || SettingsViewModel.IsSettingsWindowOpen && SettingsViewModel.IsPreviewTabOpen;
+            var shouldBeRunning = _modeManager.ActiveMode == LightingMode.ScreenCapture
+                    && (UserSettings.TransferActive
+                        || SettingsViewModel.IsSettingsWindowOpen && SettingsViewModel.IsPreviewTabOpen);
 
             if (isRunning && !shouldBeRunning)
             {

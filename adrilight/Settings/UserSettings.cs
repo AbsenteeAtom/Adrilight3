@@ -41,6 +41,8 @@ namespace adrilight
         private bool _sleepWakeAwarenessEnabled = true;
         private int _configFileVersion = 3;
         private AlternateWhiteBalanceModeEnum _alternateWhiteBalanceMode = AlternateWhiteBalanceModeEnum.Off;
+        private byte _soundToLightSensitivity = 50;
+        private byte _soundToLightSmoothing = 50;
 
         public int ConfigFileVersion { get => _configFileVersion; set => SetProperty(ref _configFileVersion, value); }
         public bool Autostart { get => _autostart; set => SetProperty(ref _autostart, value); }
@@ -76,6 +78,7 @@ namespace adrilight
         public bool SleepWakeAwarenessEnabled { get => _sleepWakeAwarenessEnabled; set => SetProperty(ref _sleepWakeAwarenessEnabled, value); }
         public Guid InstallationId { get; set; } = Guid.NewGuid();
         public AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get => _alternateWhiteBalanceMode; set => SetProperty(ref _alternateWhiteBalanceMode, value); }
-
+        public byte SoundToLightSensitivity { get => _soundToLightSensitivity; set => SetProperty(ref _soundToLightSensitivity, value); }
+        public byte SoundToLightSmoothing { get => _soundToLightSmoothing; set => SetProperty(ref _soundToLightSmoothing, value); }
     }
 }

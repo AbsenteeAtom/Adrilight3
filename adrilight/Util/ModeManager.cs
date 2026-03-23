@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using NLog;
 
 namespace adrilight.Util
@@ -24,7 +25,12 @@ namespace adrilight.Util
     {
         private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
 
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void OnPropertyChanged(string name) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
         private readonly IUserSettings _settings;
+        private readonly Dictionary<LightingMode, ILightingMode> _lightingModes;
         private readonly HashSet<string> _inhibitors = new HashSet<string>();
         private LightingMode _activeMode = LightingMode.ScreenCapture;
 
@@ -38,9 +44,11 @@ namespace adrilight.Util
         // ModeManager-initiated write to TransferActive as external user input.
         private bool _writingTransferActive;
 
-        public ModeManager(IUserSettings settings)
+        public ModeManager(IUserSettings settings, IEnumerable<ILightingMode> lightingModes)
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _lightingModes = (lightingModes ?? Enumerable.Empty<ILightingMode>())
+                .ToDictionary(m => m.ModeId);
             _userTransferActive = settings.TransferActive;
             settings.PropertyChanged += OnSettingsPropertyChanged;
         }
@@ -66,10 +74,15 @@ namespace adrilight.Util
         {
             if (_activeMode == mode) return;
             _log.Info($"Mode switching from {_activeMode} to {mode}");
+
+            if (_lightingModes.TryGetValue(_activeMode, out var outgoing) && outgoing.IsRunning)
+                outgoing.Stop();
+
             _activeMode = mode;
-            // TODO(SoundToLight/GamerMode): stop the current pipeline and start the new one.
-            // Currently only ScreenCapture is implemented. DesktopDuplicatorReader is driven
-            // by TransferActive via PropertyChanged and needs no explicit control here.
+            OnPropertyChanged(nameof(ActiveMode));
+
+            if (_lightingModes.TryGetValue(_activeMode, out var incoming) && !incoming.IsRunning)
+                incoming.Start();
         }
 
         public void AddInhibitor(string source)

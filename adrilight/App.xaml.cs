@@ -133,6 +133,7 @@ namespace adrilight
                 kernel.Bind<ISerialStream>().To<SerialStream>().InSingletonScope();
                 kernel.Bind<IDesktopDuplicatorReader>().To<DesktopDuplicatorReader>().InSingletonScope();
                 kernel.Bind<Util.IModeManager>().To<Util.ModeManager>().InSingletonScope();
+                kernel.Bind<Util.IAudioCaptureProvider>().To<Util.WasapiAudioCaptureProvider>().InSingletonScope();
             }
 
             kernel.Bind<ViewModel.DiagnosticsViewModel>()
@@ -143,6 +144,14 @@ namespace adrilight
                 .SelectAllClasses()
                 .InheritedFrom<ISelectableViewPart>()
                 .BindAllInterfaces());
+            if (!isInDesignMode)
+            {
+                kernel.Bind(x => x.FromThisAssembly()
+                    .SelectAllClasses()
+                    .InheritedFrom<Util.ILightingMode>()
+                    .BindAllInterfaces());
+            }
+
             kernel.Bind<Util.INightLightRegistryReader>().To<Util.RegistryNightLightReader>().InSingletonScope();
             kernel.Bind<NightLightDetection>().ToSelf().InSingletonScope();
 

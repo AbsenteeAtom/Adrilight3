@@ -32,7 +32,8 @@ namespace adrilight.ViewModel
         private const string InstallationGuidePage = "https://github.com/AbsenteeAtom/Adrilight3/blob/main/INSTALLATION.md";
 
         public SettingsViewModel(IUserSettings userSettings, IList<ISelectableViewPart> selectableViewParts,
-            ISpotSet spotSet, IContext context, ISerialStream serialStream, DiagnosticsViewModel diagnostics)
+            ISpotSet spotSet, IContext context, ISerialStream serialStream, DiagnosticsViewModel diagnostics,
+            Util.IModeManager modeManager)
         {
             if (selectableViewParts == null) throw new ArgumentNullException(nameof(selectableViewParts));
 
@@ -41,7 +42,17 @@ namespace adrilight.ViewModel
             Context = context ?? throw new ArgumentNullException(nameof(context));
             this.serialStream = serialStream ?? throw new ArgumentNullException(nameof(serialStream));
             Diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
+            _modeManager = modeManager ?? throw new ArgumentNullException(nameof(modeManager));
             SelectableViewParts = selectableViewParts.OrderBy(p => p.Order).ToList();
+
+            _modeManager.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(Util.IModeManager.ActiveMode))
+                {
+                    OnPropertyChanged(nameof(IsScreenCaptureMode));
+                    OnPropertyChanged(nameof(IsSoundToLightMode));
+                }
+            };
 
 #if DEBUG
             SelectedViewPart = SelectableViewParts.Last();
@@ -211,6 +222,20 @@ namespace adrilight.ViewModel
         });
 
         private static void OpenUrl(string url) => Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+
+        private readonly Util.IModeManager _modeManager;
+
+        public bool IsScreenCaptureMode
+        {
+            get => _modeManager.ActiveMode == Util.LightingMode.ScreenCapture;
+            set { if (value) _modeManager.SetMode(Util.LightingMode.ScreenCapture); }
+        }
+
+        public bool IsSoundToLightMode
+        {
+            get => _modeManager.ActiveMode == Util.LightingMode.SoundToLight;
+            set { if (value) _modeManager.SetMode(Util.LightingMode.SoundToLight); }
+        }
 
         private int _spotsXMaximum = 300;
         public int SpotsXMaximum => _spotsXMaximum;

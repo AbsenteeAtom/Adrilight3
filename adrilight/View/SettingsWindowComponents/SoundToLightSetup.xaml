@@ -1,0 +1,76 @@
+<UserControl x:Class="adrilight.View.SettingsWindowComponents.SoundToLightSetup"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d"
+             TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+             TextElement.FontWeight="Regular"
+             TextElement.FontSize="13"
+             TextOptions.TextFormattingMode="Ideal"
+             TextOptions.TextRenderingMode="Auto"
+             Background="{DynamicResource MaterialDesignPaper}"
+             FontFamily="{StaticResource MaterialDesignFont}"
+             d:DesignHeight="900" d:DesignWidth="900">
+    <WrapPanel Margin="0 0 8 8">
+
+        <materialDesign:Card Margin="4 4 4 4" Width="900">
+            <StackPanel Margin="16 12 16 12">
+                <TextBlock FontWeight="Bold">Sound to Light</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 8 0 0" TextAlignment="Justify">
+                    Captures your system's audio output (WASAPI loopback — no microphone required) and drives the
+                    LEDs in real time. Three frequency bands are mapped to LED zones:
+                    <LineBreak />
+                    <LineBreak />
+                    <Bold>Bottom LEDs</Bold> respond to bass (20–200 Hz) with a warm orange-red colour.
+                    <LineBreak />
+                    <Bold>Side LEDs</Bold> respond to mid frequencies (200–2000 Hz) with neutral white.
+                    <LineBreak />
+                    <Bold>Top LEDs</Bold> respond to treble (2–20 kHz) with a cool blue.
+                    <LineBreak />
+                    <LineBreak />
+                    Switch to Sound to Light mode on the General Setup tab. The LEDs revert to Screen Capture when you switch back.
+                </TextBlock>
+            </StackPanel>
+        </materialDesign:Card>
+
+        <materialDesign:Card Margin="4 4 4 4" Width="440">
+            <StackPanel Margin="16 12 16 16">
+                <TextBlock FontWeight="Bold">Sensitivity</TextBlock>
+                <DockPanel Margin="0 8 0 0">
+                    <TextBox DockPanel.Dock="Right"
+                             MinWidth="50" Margin="8 0 0 8" VerticalAlignment="Bottom"
+                             Text="{Binding Settings.SoundToLightSensitivity, UpdateSourceTrigger=PropertyChanged}" />
+                    <Slider Minimum="1" Maximum="100"
+                            Style="{StaticResource MaterialDesignDiscreteSlider}"
+                            Value="{Binding Settings.SoundToLightSensitivity}" />
+                </DockPanel>
+                <TextBlock TextWrapping="Wrap" Margin="0 8 0 0" TextAlignment="Justify">
+                    How strongly the audio signal drives LED brightness. Raise this if the LEDs look dim at your
+                    typical listening volume; lower it if they saturate or look washed out. Default is 50.
+                </TextBlock>
+            </StackPanel>
+        </materialDesign:Card>
+
+        <materialDesign:Card Margin="4 4 4 4" Width="440">
+            <StackPanel Margin="16 12 16 16">
+                <TextBlock FontWeight="Bold">Smoothing</TextBlock>
+                <DockPanel Margin="0 8 0 0">
+                    <TextBox DockPanel.Dock="Right"
+                             MinWidth="50" Margin="8 0 0 8" VerticalAlignment="Bottom"
+                             Text="{Binding Settings.SoundToLightSmoothing, UpdateSourceTrigger=PropertyChanged}" />
+                    <Slider Minimum="1" Maximum="100"
+                            Style="{StaticResource MaterialDesignDiscreteSlider}"
+                            Value="{Binding Settings.SoundToLightSmoothing}" />
+                </DockPanel>
+                <TextBlock TextWrapping="Wrap" Margin="0 8 0 0" TextAlignment="Justify">
+                    Controls how smoothly the LEDs transition between levels. Low values give a fast, raw response
+                    that follows every beat precisely. High values produce a silky, gradual fade that is easier
+                    on the eyes for sustained listening. Default is 50.
+                </TextBlock>
+            </StackPanel>
+        </materialDesign:Card>
+
+    </WrapPanel>
+</UserControl>

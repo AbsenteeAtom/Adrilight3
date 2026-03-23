@@ -36,10 +36,11 @@ adrilight.Tests/
   BlackBarDetectionTests.cs      — DetectBlackBars + GetSamplingRectangle (11 tests)
   SleepWakeTests.cs              — SleepWakeController suspend/resume state machine (5 tests)
   NightLightDetectionTests.cs   — ParseRegistryData: ON (0x15, 0x12), OFF (0x13, 0x10), null, unknown byte, too-short data (7 tests)
-  ModeManagerTests.cs           — inhibitor model, screen-saver-while-locked scenario, mode switching (10 tests)
+  ModeManagerTests.cs           — inhibitor model, screen-saver-while-locked scenario, mode switching, pipeline Start/Stop (12 tests)
+  AudioCaptureReaderTests.cs    — ModeId, Start/Stop wiring, zero-audio, bass/treble burst, sensitivity, pure helpers (20 tests)
 ```
 
-Total tests: **59/59 passing**
+Total tests: **81/81 passing**
 
 ### Running tests
 ```
@@ -50,7 +51,7 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 The test suite covers all logic that does not require a live GPU or display output. The hard boundary is the DXGI/Direct3D11 layer inside `DesktopDuplicator`.
 
-**What is covered (47 tests):**
+**What is covered (81 tests):**
 
 | Test file | What it exercises |
 |---|---|
@@ -60,7 +61,8 @@ The test suite covers all logic that does not require a live GPU or display outp
 | `NightLightDetectionTests.cs` | `NightLightDetection.ParseRegistryData` |
 | `UserSettingsManagerTests.cs` | Settings save/load/migrate, whitebalance clamping |
 | `DiagnosticsViewModelTests.cs` | `DiagnosticsViewModel` ring buffer, status ratchet, filtering |
-| `ModeManagerTests.cs` | `ModeManager` inhibitor model, screen-saver-while-locked bug scenario, mode switching |
+| `ModeManagerTests.cs` | `ModeManager` inhibitor model, screen-saver-while-locked bug scenario, mode switching, pipeline Start/Stop |
+| `AudioCaptureReaderTests.cs` | `AudioCaptureReader` Start/Stop wiring, zero-audio, bass/treble burst, sensitivity scaling, pure helpers (`TintColor`, `ClassifyZone`, `AttackAlpha`, `DecayAlpha`) |
 | `DependencyInjectionTests.cs` | Ninject container wiring (design-time and runtime) |
 
 `DetectBlackBars` and `GetSamplingRectangle` are declared `internal static` on `DesktopDuplicatorReader`. Tests call them directly, supplying a `BitmapData` obtained by locking a `System.Drawing.Bitmap` constructed in-process — no GPU involved.
@@ -83,9 +85,9 @@ Everything upstream of `BitmapData` — acquiring a frame from DXGI, building mi
 
 ### Building a local executable
 ```
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.4.2
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.6.0
 ```
-Output goes to `publish/adrilight-3.4.2/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
+Output goes to `publish/adrilight-3.6.0/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
 The `publish/` folder is excluded from git via `.gitignore`.
 
 ### End-user installation guide
@@ -367,6 +369,28 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 7. **White Balance mode icon alignment fixed:** Row heights changed from `1*` to `auto`; icon `VerticalAlignment` set to `Top` and top margins unified to `8px` (matching the label top margin); description TextBlocks given matching `8px` top margin. Removes the visual gap between icons and their labels.
 8. Version bumped to 3.4.1
 
+### 2026-03-23 — Sound to Light mode (v3.6.0)
+1. **NAudio 2.2.1** added to `adrilight.csproj` — provides `WasapiLoopbackCapture`, `FastFourierTransform`, `Complex`.
+2. **`ILightingMode`** interface created (`Util/ILightingMode.cs`): `ModeId`, `Start()`, `Stop()`, `IsRunning`. Ninject convention binding discovers all implementations and injects them into `ModeManager` as `IEnumerable<ILightingMode>`.
+3. **`IModeManager` extended** with `INotifyPropertyChanged`; `ModeManager` now accepts `IEnumerable<ILightingMode>`, stops the outgoing pipeline and starts the incoming one in `SetMode()`, and raises `PropertyChanged(nameof(ActiveMode))`.
+4. **`DesktopDuplicatorReader`** gains `IModeManager` constructor param; subscribes to `PropertyChanged`; `shouldBeRunning` now gated on `ActiveMode == ScreenCapture`. DDR shuts itself off automatically when switching to Sound to Light.
+5. **`IAudioCaptureProvider`** interface + **`WasapiAudioCaptureProvider`** implementation — WASAPI hardware not accessed until `Start()` (safe for DI and tests).
+6. **`AudioCaptureReader`** (`ILightingMode`, `ModeId = SoundToLight`):
+   - 1024-sample circular mono buffer; accumulates stereo→mono-mixed samples from WASAPI callback.
+   - Per-buffer: apply Hann window → `FastFourierTransform.FFT` (forward, normalised by N) → three logarithmic band ranges → total-band RMS energy → normalise by `reference = 0.25` (NAudio FFT divides by N; peak bin magnitude for full-amplitude Hann-windowed sine = A/4) → `Clamp(rms/0.25 * sensitivity/50, 0, 1)`.
+   - Bands: bass 20–200 Hz → bottom spots (warm orange-red `(255, 60, 0)*level`), mid 200–2000 Hz → side spots (neutral white), treble 2–20 kHz → top spots (cool blue `(60, 120, 255)*level`).
+   - Spot zones classified by centroid Y: `cy > 65%` → Bass, `cy < 35%` → Treble, else Mid.
+   - Exponential smoothing: `attack = (101-s)/100 * 0.95 + 0.04`, `decay = (101-s)/100 * 0.35 + 0.01` (decay always slower than attack).
+   - Locks `SpotSet.Lock`, writes all spots, sets `IsDirty = true` every FFT run.
+7. **`IUserSettings` / `UserSettings` / `UserSettingsFake`** — added `SoundToLightSensitivity` (default 50) and `SoundToLightSmoothing` (default 50).
+8. **`App.xaml.cs`** — added `IAudioCaptureProvider → WasapiAudioCaptureProvider` singleton binding in runtime branch; `ILightingMode` convention binding already added in previous session.
+9. **`SettingsViewModel`** gains `IModeManager` constructor param; `IsScreenCaptureMode` / `IsSoundToLightMode` bool shim properties; `PropertyChanged` on `ActiveMode` propagates to both.
+10. **`SoundToLightSetup.xaml` + `.xaml.cs`** — Sensitivity and Smoothing sliders; `SoundToLightSelectableViewPart` (`Order = 75`).
+11. **`GeneralSetup.xaml`** — Lighting Mode card with two `RadioButton`s (`GroupName="LightingMode"`) bound to `IsScreenCaptureMode` / `IsSoundToLightMode`.
+12. **`ModeManagerFake`** — `event PropertyChangedEventHandler PropertyChanged` added (no-op).
+13. 20 new tests in `AudioCaptureReaderTests.cs`; 2 new pipeline tests in `ModeManagerTests.cs`. Total tests: 81/81.
+14. Version bumped to 3.6.0.
+
 ### 2026-03-23 — ModeManager architecture (v3.5.0)
 1. `IModeManager` interface and `ModeManager` implementation added (`Util/IModeManager.cs`, `Util/ModeManager.cs`). ModeManager is the sole writer of `TransferActive`.
 2. Inhibitor model: `AddInhibitor(source)` / `RemoveInhibitor(source)` — sources tracked independently in a `HashSet`; user intent saved on first inhibitor, restored when last clears.
@@ -413,10 +437,11 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 | `"lock"` | `App.xaml.cs` `SessionLock` event | `App.xaml.cs` `SessionUnlock` event |
 | `"screensaver"` | `App.xaml.cs` screen saver timer | `App.xaml.cs` screen saver timer |
 
-**Mode model (MVP):**
+**Mode model:**
 - `ActiveMode` defaults to `ScreenCapture` on every launch; never persisted
-- `SetMode()` updates `ActiveMode` and logs the change; no pipeline start/stop yet
-- `TODO(SoundToLight/GamerMode)`: when those pipelines are implemented, `SetMode()` will stop the current pipeline and start the new one
+- `SetMode()` stops the outgoing `ILightingMode` pipeline (if running), updates `ActiveMode`, raises `PropertyChanged`, then starts the incoming pipeline
+- `ILightingMode` implementations are discovered by Ninject convention binding and injected as `IEnumerable<ILightingMode>`
+- `DesktopDuplicatorReader` subscribes to `IModeManager.PropertyChanged` and only runs when `ActiveMode == ScreenCapture`
 
 **External code interaction:**
 - Tray icon toggle, UI toggle, TCP ON/OFF: write `TransferActive` directly to `IUserSettings`

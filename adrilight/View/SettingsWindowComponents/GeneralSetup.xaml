@@ -166,6 +166,35 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <materialDesign:PackIcon Kind="Equalizer" Margin="0 8 0 0" Width="132" Height="132"
+                                         VerticalAlignment="Center"
+                                         HorizontalAlignment="Center"/>
+
+                <StackPanel Grid.Row="1" Margin="8 24 8 16">
+                    <TextBlock FontWeight="Bold">Lighting Mode</TextBlock>
+                    <RadioButton GroupName="LightingMode" Content="Screen Capture"
+                                 IsChecked="{Binding IsScreenCaptureMode}"
+                                 Margin="0 8 0 0" />
+                    <RadioButton GroupName="LightingMode" Content="Sound to Light"
+                                 IsChecked="{Binding IsSoundToLightMode}"
+                                 Margin="0 4 0 0" />
+                    <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" TextAlignment="Justify" Margin="0 8 0 0">
+                        <Bold>Screen Capture</Bold> samples your screen colours for ambient lighting.
+                        <LineBreak />
+                        <LineBreak />
+                        <Bold>Sound to Light</Bold> reacts to your system audio for music-reactive lighting. Configure it on the Sound to Light tab.
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </materialDesign:Card>
+
+        <materialDesign:Card Margin="4 4 4 4" Width="300">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 

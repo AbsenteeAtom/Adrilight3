@@ -24,7 +24,7 @@
         <materialDesign:Card Margin="4 4 4 4" Grid.Row="0">
             <StackPanel Margin="38 28 38 28">
                 <TextBlock FontSize="24" FontWeight="Bold" Margin="0 0 0 8">adrilight</TextBlock>
-                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.5.0 — AbsenteeAtom Edition</TextBlock>
+                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.6.0 — AbsenteeAtom Edition</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 6">
                     Ambient LED lighting for Windows. Captures your screen in real time using the Desktop Duplication API,
                     calculates the average colour across zones around the edge of the screen, and drives a WS2812b LED
@@ -39,7 +39,28 @@
         <!-- What's new -->
         <materialDesign:Card Margin="4 0 4 4" Grid.Row="1">
             <StackPanel Margin="38 28 38 28">
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.5.0</TextBlock>
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.6.0</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Sound to Light</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● New lighting mode: Sound to Light. Captures your system audio output (WASAPI loopback —
+                    no microphone required) and drives the LEDs in real time using a 1024-point FFT.
+                    Three frequency bands are mapped to LED zones: bass (20–200 Hz) lights the bottom
+                    LEDs with warm orange-red, mid frequencies (200–2000 Hz) drive the side LEDs with
+                    neutral white, and treble (2–20 kHz) illuminates the top LEDs with cool blue.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Sensitivity and Smoothing controls on the new Sound to Light settings tab. Sensitivity
+                    scales how strongly audio levels drive LED brightness. Smoothing applies separate
+                    attack and decay time constants — fast for sharp transients, slow for natural fades.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Lighting mode selector added to General Setup: choose Screen Capture or Sound to Light.
+                    The active mode is shown in the TCP STATUS response and can be switched via MODE SCREEN
+                    or MODE SOUND commands.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.5.0</TextBlock>
 
                 <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Architecture</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">

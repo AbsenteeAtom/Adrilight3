@@ -4,7 +4,7 @@
 
 > An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
 
-**adrilight 3.5.0 — AbsenteeAtom Edition**
+**adrilight 3.6.0 — AbsenteeAtom Edition**
 Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
 The original author retired the project; this fork modernises it for .NET 8 and adds new features.
 
@@ -41,6 +41,12 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 ---
 
 ## What's new
+
+### 3.6.0
+
+- **Sound to Light mode** — new audio-reactive lighting pipeline using WASAPI loopback capture (no microphone required). A 1024-sample Hann-windowed FFT maps three logarithmic frequency bands to LED zones each frame: bass (20–200 Hz) lights the bottom LEDs warm orange-red, mid frequencies (200–2000 Hz) drive the side LEDs with neutral white, and treble (2–20 kHz) illuminates the top LEDs with cool blue. Separate attack and decay smoothing keeps the response snappy on transients while fading naturally between beats
+- **Sensitivity and Smoothing controls** — new Sound to Light tab with two sliders. Sensitivity scales how strongly audio levels drive brightness; Smoothing controls the attack/decay time constants. Both persist across sessions
+- **Lighting mode selector** — General Setup now has a mode selector card (Screen Capture / Sound to Light). The active mode is live-switchable at any time; the LEDs revert to screen capture immediately when switching back
 
 ### 3.5.0
 
@@ -183,7 +189,7 @@ Send a newline-terminated ASCII command; receive a JSON response:
 
 Commands are case-insensitive. Mode values in responses are always lowercase: `screen`, `sound`, `gamer`.
 
-> **Note:** Sound to Light and Gamer Mode are not yet implemented. Sending `MODE SOUND` or `MODE GAMER` will switch the reported mode but the LEDs will continue to use screen capture until those pipelines are built.
+> **Note:** `MODE SOUND` switches to the Sound to Light pipeline (implemented in 3.6.0). `MODE GAMER` switches the reported mode but the LEDs will continue to use screen capture until Gamer Mode is implemented.
 
 **Example (PowerShell):**
 ```powershell
@@ -216,10 +222,10 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 **Publish a local executable:**
 ```bash
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.5.0
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.6.0
 ```
 
-Output goes to `publish/adrilight-3.5.0/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
+Output goes to `publish/adrilight-3.6.0/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
 
 ---
 

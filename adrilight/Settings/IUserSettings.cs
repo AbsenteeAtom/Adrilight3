@@ -55,5 +55,9 @@ namespace adrilight
 
         string AdrilightVersion { get; set; }
         AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get; set; }
+
+        // Sound to Light settings
+        byte SoundToLightSensitivity { get; set; }
+        byte SoundToLightSmoothing { get; set; }
     }
 }

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using adrilight.Util;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -7,11 +9,13 @@ namespace adrilight.Tests
     [TestClass]
     public class ModeManagerTests
     {
-        private (ModeManager manager, Mock<IUserSettings> settings) Build(bool transferActive = true)
+        private (ModeManager manager, Mock<IUserSettings> settings) Build(
+            bool transferActive = true,
+            IEnumerable<ILightingMode> lightingModes = null)
         {
             var mock = new Mock<IUserSettings>();
             mock.SetupProperty(s => s.TransferActive, transferActive);
-            var manager = new ModeManager(mock.Object);
+            var manager = new ModeManager(mock.Object, lightingModes ?? Array.Empty<ILightingMode>());
             return (manager, mock);
         }
 
@@ -159,6 +163,47 @@ namespace adrilight.Tests
 
             Assert.AreEqual(LightingMode.ScreenCapture, manager.ActiveMode);
             Assert.IsTrue(settings.Object.TransferActive, "TransferActive must not change for a no-op SetMode");
+        }
+
+        // ── Pipeline Start/Stop wiring ────────────────────────────────────────────
+
+        [TestMethod]
+        public void SetMode_ToNewMode_StartsIncomingPipeline()
+        {
+            var pipeline = new Mock<ILightingMode>();
+            pipeline.Setup(p => p.ModeId).Returns(LightingMode.SoundToLight);
+            pipeline.Setup(p => p.IsRunning).Returns(false);
+
+            var (manager, _) = Build(lightingModes: new[] { pipeline.Object });
+
+            manager.SetMode(LightingMode.SoundToLight);
+
+            pipeline.Verify(p => p.Start(), Times.Once,
+                "SetMode should call Start() on the incoming pipeline");
+        }
+
+        [TestMethod]
+        public void SetMode_FromRunningMode_StopsOutgoingPipeline()
+        {
+            var outgoing = new Mock<ILightingMode>();
+            outgoing.Setup(p => p.ModeId).Returns(LightingMode.SoundToLight);
+            outgoing.Setup(p => p.IsRunning).Returns(true);
+
+            var incoming = new Mock<ILightingMode>();
+            incoming.Setup(p => p.ModeId).Returns(LightingMode.GamerMode);
+            incoming.Setup(p => p.IsRunning).Returns(false);
+
+            var (manager, _) = Build(lightingModes: new[] { outgoing.Object, incoming.Object });
+
+            // First put manager into SoundToLight, then switch to GamerMode
+            manager.SetMode(LightingMode.SoundToLight);
+            outgoing.Setup(p => p.IsRunning).Returns(true); // now it's "running"
+            manager.SetMode(LightingMode.GamerMode);
+
+            outgoing.Verify(p => p.Stop(), Times.Once,
+                "SetMode should call Stop() on the outgoing running pipeline");
+            incoming.Verify(p => p.Start(), Times.Once,
+                "SetMode should call Start() on the incoming pipeline");
         }
     }
 }

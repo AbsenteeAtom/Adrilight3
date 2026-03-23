@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace adrilight.Util
 {
     /// <summary>Identifies the active lighting pipeline.</summary>
@@ -18,7 +20,7 @@ namespace adrilight.Util
     /// (sleep, lock, screen saver) are tracked independently and do not overwrite
     /// each other's saved state.
     /// </summary>
-    public interface IModeManager
+    public interface IModeManager : INotifyPropertyChanged
     {
         /// <summary>The currently selected lighting mode. Always defaults to ScreenCapture on launch.</summary>
         LightingMode ActiveMode { get; }
