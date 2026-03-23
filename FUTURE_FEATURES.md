@@ -33,6 +33,7 @@ This file documents planned features for future versions of adrilight. Each entr
 - ~~Requires a **mode manager** to switch cleanly between screen capture mode and audio reactive mode; both pipelines cannot run simultaneously without contention over the `SpotSet`.~~ **Done (v3.5.0):** `IModeManager` / `ModeManager` implemented. `SetMode(LightingMode.SoundToLight)` already accepted by the TCP API. The next step is implementing `AudioCaptureReader` as an `ILightingMode` and wiring it into `ModeManager.SetMode()`.
 - NAudio (WASAPI loopback) captures system audio output without requiring a microphone.
 - FFT maps frequency bands to LED positions: low bass frequencies → bottom LEDs, mid-range → sides, high frequencies → top, or user-configurable zone mapping.
+- **Future consideration** — make the warm-bottom/cool-top colour tinting toggleable, offering a White Only mode where all zones drive pure white at varying brightness. To be implemented if requested by the community.
 
 ---
 
