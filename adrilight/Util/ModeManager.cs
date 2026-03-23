@@ -81,8 +81,15 @@ namespace adrilight.Util
             _activeMode = mode;
             OnPropertyChanged(nameof(ActiveMode));
 
-            if (_lightingModes.TryGetValue(_activeMode, out var incoming) && !incoming.IsRunning)
-                incoming.Start();
+            if (_lightingModes.TryGetValue(_activeMode, out var incoming))
+            {
+                if (!incoming.IsRunning)
+                    incoming.Start();
+            }
+            else
+            {
+                _log.Warn($"No ILightingMode pipeline registered for {_activeMode}.");
+            }
         }
 
         public void AddInhibitor(string source)

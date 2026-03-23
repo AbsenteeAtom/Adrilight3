@@ -146,10 +146,8 @@ namespace adrilight
                 .BindAllInterfaces());
             if (!isInDesignMode)
             {
-                kernel.Bind(x => x.FromThisAssembly()
-                    .SelectAllClasses()
-                    .InheritedFrom<Util.ILightingMode>()
-                    .BindAllInterfaces());
+                // Explicit binding — convention scanning skips internal classes
+                kernel.Bind<Util.ILightingMode>().To<Util.AudioCaptureReader>().InSingletonScope();
             }
 
             kernel.Bind<Util.INightLightRegistryReader>().To<Util.RegistryNightLightReader>().InSingletonScope();

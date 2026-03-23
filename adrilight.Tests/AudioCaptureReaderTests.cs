@@ -9,10 +9,17 @@ using static adrilight.Util.AudioCaptureReader;
 namespace adrilight.Tests
 {
     /// <summary>
-    /// Tests for AudioCaptureReader.
-    /// The audio hardware boundary is mocked via IAudioCaptureProvider.
-    /// Spot I/O is mocked via ISpotSet + ISpot.
-    /// All pure helper functions are tested directly (they are internal static).
+    /// Tests for AudioCaptureReader — physics-inspired colour-frequency model.
+    ///
+    /// Design:
+    ///   Each LED is assigned a random FFT bin (20 Hz–10 kHz).
+    ///   The bin's frequency is mapped logarithmically to a visible wavelength (700 nm → 400 nm),
+    ///   which is converted to an RGB colour via the Bruton approximation.
+    ///   Brightness tracks the FFT magnitude at the assigned bin (exponentially smoothed).
+    ///   Strong bass hits trigger a random reshuffle of all assignments (max once per second).
+    ///
+    /// Audio hardware is mocked via IAudioCaptureProvider.
+    /// Pure helper functions are tested directly (internal static).
     /// </summary>
     [TestClass]
     public class AudioCaptureReaderTests
@@ -41,47 +48,41 @@ namespace adrilight.Tests
 
         /// <summary>
         /// Creates a spot whose SetColor calls are recorded into a mutable tuple.
-        /// The spot's rectangle centroid is at (cx, cy) with a 50×50 area.
         /// </summary>
         private static (Mock<ISpot> spot, Func<(byte r, byte g, byte b)> color) MakeSpot(int cx, int cy)
         {
             var spot = new Mock<ISpot>();
-            spot.SetupGet(s => s.Rectangle)
-                .Returns(new Rectangle(cx - 25, cy - 25, 50, 50));
+            spot.SetupGet(s => s.Rectangle).Returns(new Rectangle(cx - 25, cy - 25, 50, 50));
             byte lastR = 0, lastG = 0, lastB = 0;
             spot.Setup(s => s.SetColor(It.IsAny<byte>(), It.IsAny<byte>(), It.IsAny<byte>(), It.IsAny<bool>()))
                 .Callback<byte, byte, byte, bool>((r, g, b, _) => { lastR = r; lastG = g; lastB = b; });
             return (spot, () => (lastR, lastG, lastB));
         }
 
-        /// <summary>
-        /// Creates a spot set with one bottom spot (cy=870) and one top spot (cy=130)
-        /// on a 1000×1000 virtual screen.
-        /// </summary>
         private static (Mock<ISpotSet> spotSet,
-                        Func<(byte r, byte g, byte b)> bottomColor,
-                        Func<(byte r, byte g, byte b)> topColor)
+                        Func<(byte r, byte g, byte b)> getColor0,
+                        Func<(byte r, byte g, byte b)> getColor1)
             MakeSpotSet()
         {
-            var (bottomSpot, getBottomColor) = MakeSpot(500, 870);  // bottom 35% → Bass
-            var (topSpot,    getTopColor)    = MakeSpot(500, 130);   // top 35%    → Treble
+            var (spot0, getColor0) = MakeSpot(200, 300);
+            var (spot1, getColor1) = MakeSpot(600, 700);
 
             var ss = new Mock<ISpotSet>();
             ss.SetupGet(s => s.ExpectedScreenWidth).Returns(1000);
             ss.SetupGet(s => s.ExpectedScreenHeight).Returns(1000);
             ss.SetupGet(s => s.Lock).Returns(new object());
             ss.SetupProperty(s => s.IsDirty, false);
-            ss.SetupGet(s => s.Spots).Returns(new ISpot[] { bottomSpot.Object, topSpot.Object });
-            return (ss, getBottomColor, getTopColor);
+            ss.SetupGet(s => s.Spots).Returns(new ISpot[] { spot0.Object, spot1.Object });
+            return (ss, getColor0, getColor1);
         }
 
         private static AudioCaptureReader MakeReader(
-            Mock<IUserSettings> settings,
-            Mock<ISpotSet> spotSet,
+            Mock<IUserSettings>         settings,
+            Mock<ISpotSet>              spotSet,
             Mock<IAudioCaptureProvider> capture)
             => new AudioCaptureReader(settings.Object, spotSet.Object, capture.Object);
 
-        /// <summary>Generates 1024 stereo float samples of a pure sine at the given frequency.</summary>
+        /// <summary>Generates FftLength stereo float samples of a pure sine at the given frequency.</summary>
         private static float[] SineStereo(float freqHz, int sampleRate = 44100, float amplitude = 0.5f)
         {
             var buf = new float[FftLength * 2];
@@ -101,8 +102,7 @@ namespace adrilight.Tests
         {
             var (capture, _) = MakeCapture();
             var (ss, _, _)   = MakeSpotSet();
-            var reader = MakeReader(MakeSettings(), ss, capture);
-            Assert.AreEqual(LightingMode.SoundToLight, reader.ModeId);
+            Assert.AreEqual(LightingMode.SoundToLight, MakeReader(MakeSettings(), ss, capture).ModeId);
         }
 
         // ── IsRunning ─────────────────────────────────────────────────────────────
@@ -112,8 +112,7 @@ namespace adrilight.Tests
         {
             var (capture, _) = MakeCapture();
             var (ss, _, _)   = MakeSpotSet();
-            var reader = MakeReader(MakeSettings(), ss, capture);
-            Assert.IsFalse(reader.IsRunning);
+            Assert.IsFalse(MakeReader(MakeSettings(), ss, capture).IsRunning);
         }
 
         [TestMethod]
@@ -144,8 +143,7 @@ namespace adrilight.Tests
         {
             var (capture, _) = MakeCapture();
             var (ss, _, _)   = MakeSpotSet();
-            var reader = MakeReader(MakeSettings(), ss, capture);
-            reader.Start();
+            MakeReader(MakeSettings(), ss, capture).Start();
             capture.Verify(c => c.Start(It.IsAny<Action<float[], int>>()), Times.Once);
         }
 
@@ -160,81 +158,167 @@ namespace adrilight.Tests
             capture.Verify(c => c.Stop(), Times.Once);
         }
 
+        // ── Wavelength helpers ────────────────────────────────────────────────────
+
+        [TestMethod]
+        public void WavelengthToRgb_700nm_IsRed()
+        {
+            var (r, g, b) = WavelengthToRgb(700f);
+            Assert.AreEqual(1f, r, "700 nm (red) should have R=1");
+            Assert.AreEqual(0f, g, "700 nm (red) should have G=0");
+            Assert.AreEqual(0f, b, "700 nm (red) should have B=0");
+        }
+
+        [TestMethod]
+        public void WavelengthToRgb_450nm_IsBlueDominant()
+        {
+            var (r, g, b) = WavelengthToRgb(450f);
+            Assert.AreEqual(0f, r, "450 nm (blue) should have R=0");
+            Assert.AreEqual(1f, b, "450 nm (blue) should have B=1");
+            Assert.IsTrue(b > r && b > g, $"Blue channel should dominate at 450 nm (R={r}, G={g}, B={b})");
+        }
+
+        [TestMethod]
+        public void WavelengthToRgb_530nm_IsGreenDominant()
+        {
+            var (r, g, b) = WavelengthToRgb(530f);
+            Assert.AreEqual(1f, g, "530 nm (green) should have G=1");
+            Assert.AreEqual(0f, b, "530 nm (green) should have B=0");
+            Assert.IsTrue(g > r, $"Green channel should dominate at 530 nm (R={r}, G={g})");
+        }
+
+        [TestMethod]
+        public void WavelengthToRgb_400nm_IsViolet()
+        {
+            // 400 nm: r=(440-400)/40=1, g=0, b=1 → violet (magenta approximation)
+            var (r, g, b) = WavelengthToRgb(400f);
+            Assert.AreEqual(0f, g, "400 nm (violet) should have G=0");
+            Assert.AreEqual(1f, b, "400 nm (violet) should have B=1");
+            Assert.AreEqual(1f, r, "400 nm (violet) should have R=1 (Bruton magenta approximation)");
+        }
+
+        // ── Frequency-to-wavelength helper ───────────────────────────────────────
+
+        [TestMethod]
+        public void FrequencyToWavelength_20Hz_Returns700nm()
+        {
+            Assert.AreEqual(700f, FrequencyToWavelength(20f), 0.01f, "20 Hz should map to 700 nm (red)");
+        }
+
+        [TestMethod]
+        public void FrequencyToWavelength_10kHz_Returns400nm()
+        {
+            Assert.AreEqual(400f, FrequencyToWavelength(10000f), 0.01f, "10 kHz should map to 400 nm (violet)");
+        }
+
+        [TestMethod]
+        public void FrequencyToWavelength_MonotonicallyDecreasing()
+        {
+            float prev = FrequencyToWavelength(20f);
+            foreach (float hz in new[] { 100f, 500f, 2000f, 8000f, 10000f })
+            {
+                float nm = FrequencyToWavelength(hz);
+                Assert.IsTrue(nm < prev,
+                    $"{hz} Hz should map to a lower wavelength than {prev:F1} nm, got {nm:F1} nm");
+                prev = nm;
+            }
+        }
+
+        // ── LowFrequency/HighFrequency colour check ───────────────────────────────
+
+        [TestMethod]
+        public void LowFrequencyBin_HasWarmBaseColor()
+        {
+            // Bin near 60 Hz → wavelength near 700 nm → red dominant
+            int bin = FrequencyToBin(60f, 44100);
+            var (r, g, b) = BinToColor(bin, 44100);
+            Assert.IsTrue(r > b, $"60 Hz bin should produce a warmer (redder) colour than blue (R={r:F2}, B={b:F2})");
+        }
+
+        [TestMethod]
+        public void HighFrequencyBin_HasCoolBaseColor()
+        {
+            // Bin near 8000 Hz → wavelength near 430 nm → blue dominant
+            int bin = FrequencyToBin(8000f, 44100);
+            var (r, g, b) = BinToColor(bin, 44100);
+            Assert.IsTrue(b > r, $"8 kHz bin should produce a cooler (bluer) colour than red (R={r:F2}, B={b:F2})");
+        }
+
         // ── Audio pipeline ────────────────────────────────────────────────────────
 
         [TestMethod]
         public void ZeroAudio_SpotsAreSetToBlack()
         {
             var (capture, getCallback) = MakeCapture();
-            var (ss, getBottomColor, getTopColor) = MakeSpotSet();
+            var (ss, getColor0, _)     = MakeSpotSet();
             var reader = MakeReader(MakeSettings(sensitivity: 50, smoothing: 1), ss, capture);
-
             reader.Start();
-            // Inject one full FFT window of silence
             getCallback()(new float[FftLength * 2], FftLength * 2);
 
-            var (r, g, b) = getBottomColor();
-            Assert.AreEqual(0, r, "Zero audio should produce no bottom colour");
-            Assert.AreEqual(0, g);
-            Assert.AreEqual(0, b);
+            var (r, g, b) = getColor0();
+            Assert.AreEqual(0, r, "Zero audio should produce R=0");
+            Assert.AreEqual(0, g, "Zero audio should produce G=0");
+            Assert.AreEqual(0, b, "Zero audio should produce B=0");
         }
 
         [TestMethod]
-        public void BassBurst_BottomSpotsGetWarmColor()
+        public void BurstAtAssignedFrequency_LightsUpSpot()
         {
-            var (capture, getCallback) = MakeCapture();
-            var (ss, getBottomColor, getTopColor) = MakeSpotSet();
-            // smoothing=1 → attackAlpha≈0.99, nearly instant response
-            var reader = MakeReader(MakeSettings(sensitivity: 50, smoothing: 1), ss, capture);
-
+            // Feed a sine at exactly the frequency assigned to spot 0 — guaranteed to light it up.
+            int sampleRate = 44100;
+            var (capture, getCallback) = MakeCapture(sampleRate: sampleRate);
+            var (ss, getColor0, _)     = MakeSpotSet();
+            // smoothing=1 → attackAlpha≈0.99 (near-instant response)
+            var reader = MakeReader(MakeSettings(sensitivity: 80, smoothing: 1), ss, capture);
             reader.Start();
-            // 100 Hz sine → falls in bass band (bins 0–4 at 44100 Hz)
-            getCallback()(SineStereo(100f), FftLength * 2);
 
-            var (r, g, b) = getBottomColor();
-            Assert.IsTrue(r > 0, $"Bottom (bass) spot R should be > 0 after bass burst, was {r}");
-            Assert.IsTrue(r > b, $"Bottom spot should be warmer (R={r} > B={b})");
-        }
+            int   assignedBin = reader.SpotBins[0];
+            float freq        = assignedBin * sampleRate / (float)FftLength;
+            var   burst       = SineStereo(freq, sampleRate, amplitude: 1.0f);
 
-        [TestMethod]
-        public void TrebleBurst_TopSpotsGetCoolColor()
-        {
-            var (capture, getCallback) = MakeCapture();
-            var (ss, getBottomColor, getTopColor) = MakeSpotSet();
-            var reader = MakeReader(MakeSettings(sensitivity: 50, smoothing: 1), ss, capture);
+            // Feed enough frames for smoothing to reach a visible level
+            for (int i = 0; i < 5; i++)
+                getCallback()(burst, burst.Length);
 
-            reader.Start();
-            // 5000 Hz sine → treble band (bin ~116 at 44100 Hz)
-            getCallback()(SineStereo(5000f), FftLength * 2);
-
-            var (r, g, b) = getTopColor();
-            Assert.IsTrue(b > 0, $"Top (treble) spot B should be > 0 after treble burst, was {b}");
-            Assert.IsTrue(b > r, $"Top spot should be cooler (B={b} > R={r})");
+            var (r, g, b) = getColor0();
+            Assert.IsTrue(r + g + b > 0,
+                $"Spot assigned to bin {assignedBin} ({freq:F0} Hz) should be lit after a burst at that frequency.");
         }
 
         [TestMethod]
         public void HighSensitivity_BrighterThanLowSensitivity()
         {
-            // Run two readers with the same bass burst; compare bottom spot brightness.
-            var (captureLow, getCallbackLow) = MakeCapture();
-            var (ssLow, getLow, _) = MakeSpotSet();
-            var readerLow = MakeReader(MakeSettings(sensitivity: 1, smoothing: 1), ssLow, captureLow);
+            int sampleRate = 44100;
+            var (captureLow,  getCallbackLow)  = MakeCapture(sampleRate: sampleRate);
+            var (capturHigh,  getCallbackHigh) = MakeCapture(sampleRate: sampleRate);
+            var (ssLow,  getColor0Low,  _)     = MakeSpotSet();
+            var (ssHigh, getColor0High, _)     = MakeSpotSet();
 
-            var (captureHigh, getCallbackHigh) = MakeCapture();
-            var (ssHigh, getHigh, _) = MakeSpotSet();
-            var readerHigh = MakeReader(MakeSettings(sensitivity: 100, smoothing: 1), ssHigh, captureHigh);
+            var readerLow  = MakeReader(MakeSettings(sensitivity:  1, smoothing: 1), ssLow,  captureLow);
+            var readerHigh = MakeReader(MakeSettings(sensitivity: 100, smoothing: 1), ssHigh, capturHigh);
 
-            float[] samples = SineStereo(100f);
             readerLow.Start();
-            getCallbackLow()(samples, samples.Length);
-            var (rLow, _, _) = getLow();
-
             readerHigh.Start();
-            getCallbackHigh()(samples, samples.Length);
-            var (rHigh, _, _) = getHigh();
 
-            Assert.IsTrue(rHigh > rLow,
-                $"Sensitivity=100 (R={rHigh}) should be brighter than sensitivity=1 (R={rLow})");
+            // Drive each reader with a sine at its own spot-0 assigned frequency
+            int binLow  = readerLow.SpotBins[0];
+            int binHigh = readerHigh.SpotBins[0];
+            var burstLow  = SineStereo(binLow  * sampleRate / (float)FftLength, sampleRate, 1.0f);
+            var burstHigh = SineStereo(binHigh * sampleRate / (float)FftLength, sampleRate, 1.0f);
+
+            for (int i = 0; i < 10; i++)
+            {
+                getCallbackLow()(burstLow,   burstLow.Length);
+                getCallbackHigh()(burstHigh, burstHigh.Length);
+            }
+
+            var (rL, gL, bL) = getColor0Low();
+            var (rH, gH, bH) = getColor0High();
+            int totalLow  = rL + gL + bL;
+            int totalHigh = rH + gH + bH;
+
+            Assert.IsTrue(totalHigh > totalLow,
+                $"Sensitivity=100 (total={totalHigh}) should be brighter than sensitivity=1 (total={totalLow}).");
         }
 
         [TestMethod]
@@ -243,76 +327,51 @@ namespace adrilight.Tests
             var (capture, getCallback) = MakeCapture();
             var (ss, _, _) = MakeSpotSet();
             var reader = MakeReader(MakeSettings(), ss, capture);
-
             reader.Start();
             getCallback()(SineStereo(100f), FftLength * 2);
-
-            Assert.IsTrue(ss.Object.IsDirty, "SpotSet.IsDirty should be set after processing audio");
+            Assert.IsTrue(ss.Object.IsDirty, "SpotSet.IsDirty should be set after processing audio.");
         }
 
-        // ── Pure function tests (no mocking needed) ───────────────────────────────
+        // ── Beat detection ────────────────────────────────────────────────────────
 
         [TestMethod]
-        public void TintColor_Bass_IsWarmOrangeRed()
+        public void Beat_TriggersReshuffle()
         {
-            var (r, g, b) = TintColor(BandZone.Bass, 1.0f);
-            Assert.AreEqual(255, r, "Bass full-brightness R");
-            Assert.AreEqual(60,  g, "Bass full-brightness G");
-            Assert.AreEqual(0,   b, "Bass full-brightness B");
-            Assert.IsTrue(r > b, "Bass should be warmer than cool");
-        }
+            // Bass burst with _bassSmoothed=0 at start → rawBass > max(0,0.05)=0.05 → beat fires.
+            var (capture, getCallback) = MakeCapture();
+            var (ss, _, _) = MakeSpotSet();
+            var reader = MakeReader(MakeSettings(sensitivity: 80), ss, capture);
+            reader.Start();
+            int countAfterStart = reader.ReshuffleCount; // 1 (initial assignment)
 
-        [TestMethod]
-        public void TintColor_Treble_IsCoolBlue()
-        {
-            var (r, g, b) = TintColor(BandZone.Treble, 1.0f);
-            Assert.AreEqual(60,  r, "Treble full-brightness R");
-            Assert.AreEqual(120, g, "Treble full-brightness G");
-            Assert.AreEqual(255, b, "Treble full-brightness B");
-            Assert.IsTrue(b > r, "Treble should be cooler than warm");
+            getCallback()(SineStereo(60f, amplitude: 1.0f), FftLength * 2);
+
+            Assert.AreEqual(countAfterStart + 1, reader.ReshuffleCount,
+                "A strong bass hit should trigger one additional reshuffle.");
         }
 
         [TestMethod]
-        public void TintColor_Mid_IsNeutralWhite()
+        public void Beat_RateLimited_OncePerSecond()
         {
-            var (r, g, b) = TintColor(BandZone.Mid, 1.0f);
-            Assert.AreEqual(255, r);
-            Assert.AreEqual(255, g);
-            Assert.AreEqual(255, b);
+            var (capture, getCallback) = MakeCapture();
+            var (ss, _, _) = MakeSpotSet();
+            var reader = MakeReader(MakeSettings(sensitivity: 80), ss, capture);
+            reader.Start();
+
+            var bassBurst = SineStereo(60f, amplitude: 1.0f);
+
+            // First burst → beat + reshuffle
+            getCallback()(bassBurst, bassBurst.Length);
+            int afterFirst = reader.ReshuffleCount;
+
+            // Second burst immediately (<1 ms later) → rate-limited, no second reshuffle
+            getCallback()(bassBurst, bassBurst.Length);
+
+            Assert.AreEqual(afterFirst, reader.ReshuffleCount,
+                "A second bass hit within 1 second should be rate-limited and NOT trigger a reshuffle.");
         }
 
-        [TestMethod]
-        public void TintColor_ZeroLevel_IsBlack()
-        {
-            var (r, g, b) = TintColor(BandZone.Bass, 0f);
-            Assert.AreEqual(0, r);
-            Assert.AreEqual(0, g);
-            Assert.AreEqual(0, b);
-        }
-
-        [TestMethod]
-        public void ClassifyZone_BottomOfScreen_IsBass()
-        {
-            var spot = new Mock<ISpot>();
-            spot.SetupGet(s => s.Rectangle).Returns(new Rectangle(450, 820, 100, 100));  // cy=870
-            Assert.AreEqual(BandZone.Bass, ClassifyZone(spot.Object, 1000));
-        }
-
-        [TestMethod]
-        public void ClassifyZone_TopOfScreen_IsTreble()
-        {
-            var spot = new Mock<ISpot>();
-            spot.SetupGet(s => s.Rectangle).Returns(new Rectangle(450, 80, 100, 100));  // cy=130
-            Assert.AreEqual(BandZone.Treble, ClassifyZone(spot.Object, 1000));
-        }
-
-        [TestMethod]
-        public void ClassifyZone_MiddleOfScreen_IsMid()
-        {
-            var spot = new Mock<ISpot>();
-            spot.SetupGet(s => s.Rectangle).Returns(new Rectangle(0, 450, 50, 100));  // cy=500
-            Assert.AreEqual(BandZone.Mid, ClassifyZone(spot.Object, 1000));
-        }
+        // ── Pure helper functions ─────────────────────────────────────────────────
 
         [TestMethod]
         public void AttackAlpha_LowSmoothing_IsHigherThanHighSmoothing()
@@ -320,7 +379,7 @@ namespace adrilight.Tests
             float fast = AttackAlpha(1);
             float slow = AttackAlpha(100);
             Assert.IsTrue(fast > slow,
-                $"Fast attack (smoothing=1, α={fast:F3}) should be > slow (smoothing=100, α={slow:F3})");
+                $"Fast attack (smoothing=1, α={fast:F3}) should be > slow attack (smoothing=100, α={slow:F3}).");
         }
 
         [TestMethod]
@@ -328,7 +387,7 @@ namespace adrilight.Tests
         {
             for (byte s = 1; s <= 100; s++)
                 Assert.IsTrue(DecayAlpha(s) < AttackAlpha(s),
-                    $"Decay alpha should always be < attack alpha at smoothing={s}");
+                    $"Decay alpha should always be < attack alpha at smoothing={s}.");
         }
     }
 }
