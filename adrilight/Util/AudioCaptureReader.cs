@@ -216,7 +216,7 @@ namespace adrilight.Util
             float decay     = DecayAlpha(smoothing);
             float sensScale = sens / 50f;
             int   limit     = fftData.Length / 2;
-            const float reference = 0.25f;
+            const float reference = 0.02f;
 
             // Compute per-band energy: per-bin-average RMS, normalised by the single-bin reference.
             // Using per-bin average keeps sensitivity consistent regardless of band width.
