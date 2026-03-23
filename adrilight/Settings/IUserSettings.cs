@@ -36,6 +36,8 @@ namespace adrilight
         byte AltWhitebalanceGreen { get; set; }
         byte AltWhitebalanceBlue { get; set; }
 
+        // DEBUG-ONLY: generates a per-frame rainbow in SerialStream, bypassing the spot pipeline entirely.
+        // This is a hardware test feature and is not a LightingMode — do not promote it to one.
         bool SendRandomColors { get; set; }
 
         int LimitFps { get; set; }

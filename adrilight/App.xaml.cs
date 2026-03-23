@@ -28,10 +28,9 @@ namespace adrilight
         private static extern bool SystemParametersInfo(uint uAction, uint uParam, ref bool lpvParam, uint fuWinIni);
         private const uint SPI_GETSCREENSAVERRUNNING = 0x0072;
 
-        private bool _transferActiveBeforeLock = false;
-        private bool _screenSaverWasActive = false;
         private DispatcherTimer _screenSaverTimer;
         private Util.SleepWakeController _sleepWakeController;
+        private Util.IModeManager _modeManager;
         private ViewModel.DiagnosticsViewModel _diagnosticsViewModel;
 
         protected override void OnStartup(StartupEventArgs startupEvent)
@@ -71,6 +70,7 @@ namespace adrilight
             this.Resources["Locator"] = new ViewModelLocator(kernel);
 
             UserSettings = kernel.Get<IUserSettings>();
+            _modeManager = kernel.Get<Util.IModeManager>();
 
             var isNewVersion = VersionNumber != UserSettings.AdrilightVersion;
             if (!IsPrivateBuild && isNewVersion)
@@ -86,10 +86,10 @@ namespace adrilight
             _nightLightDetection = kernel.Get<NightLightDetection>();
             _nightLightDetection.Start();
 
-            _tcpControlServer = new TcpControlServer(UserSettings, 5080);
+            _tcpControlServer = new TcpControlServer(UserSettings, _modeManager, 5080);
             _tcpControlServer.Start();
 
-            _sleepWakeController = new Util.SleepWakeController(UserSettings);
+            _sleepWakeController = new Util.SleepWakeController(UserSettings, _modeManager);
             SetupScreenSaverTimer();
         }
 
@@ -121,6 +121,7 @@ namespace adrilight
                 kernel.Bind<ISpotSet>().To<Fakes.SpotSetFake>().InSingletonScope();
                 kernel.Bind<ISerialStream>().To<Fakes.SerialStreamFake>().InSingletonScope();
                 kernel.Bind<IDesktopDuplicatorReader>().To<Fakes.DesktopDuplicatorReaderFake>().InSingletonScope();
+                kernel.Bind<Util.IModeManager>().To<Fakes.ModeManagerFake>().InSingletonScope();
             }
             else
             {
@@ -131,6 +132,7 @@ namespace adrilight
                 kernel.Bind<ISpotSet>().To<SpotSet>().InSingletonScope();
                 kernel.Bind<ISerialStream>().To<SerialStream>().InSingletonScope();
                 kernel.Bind<IDesktopDuplicatorReader>().To<DesktopDuplicatorReader>().InSingletonScope();
+                kernel.Bind<Util.IModeManager>().To<Util.ModeManager>().InSingletonScope();
             }
 
             kernel.Bind<ViewModel.DiagnosticsViewModel>()
@@ -179,18 +181,18 @@ namespace adrilight
             {
                 if (e.Reason == SessionSwitchReason.SessionLock)
                 {
-                    _log.Debug("Session locked — turning off LEDs.");
-                    _transferActiveBeforeLock = UserSettings.TransferActive;
-                    UserSettings.TransferActive = false;
+                    _log.Debug("Session locked — adding 'lock' inhibitor.");
+                    _modeManager?.AddInhibitor("lock");
                 }
                 else if (e.Reason == SessionSwitchReason.SessionUnlock)
                 {
-                    _log.Debug("Session unlocked — restoring LED state.");
-                    if (_transferActiveBeforeLock)
-                        UserSettings.TransferActive = true;
+                    _log.Debug("Session unlocked — removing 'lock' inhibitor.");
+                    _modeManager?.RemoveInhibitor("lock");
                 }
             };
         }
+
+        private bool _screenSaverWasActive = false;
 
         private void SetupScreenSaverTimer()
         {
@@ -205,17 +207,15 @@ namespace adrilight
 
                 if (isRunning && !_screenSaverWasActive)
                 {
-                    _log.Debug("Screen saver started — turning off LEDs.");
+                    _log.Debug("Screen saver started — adding 'screensaver' inhibitor.");
                     _screenSaverWasActive = true;
-                    _transferActiveBeforeLock = UserSettings.TransferActive;
-                    UserSettings.TransferActive = false;
+                    _modeManager?.AddInhibitor("screensaver");
                 }
                 else if (!isRunning && _screenSaverWasActive)
                 {
-                    _log.Debug("Screen saver stopped — restoring LED state.");
+                    _log.Debug("Screen saver stopped — removing 'screensaver' inhibitor.");
                     _screenSaverWasActive = false;
-                    if (_transferActiveBeforeLock)
-                        UserSettings.TransferActive = true;
+                    _modeManager?.RemoveInhibitor("screensaver");
                 }
             };
             _screenSaverTimer.Start();

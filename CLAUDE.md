@@ -36,9 +36,10 @@ adrilight.Tests/
   BlackBarDetectionTests.cs      — DetectBlackBars + GetSamplingRectangle (11 tests)
   SleepWakeTests.cs              — SleepWakeController suspend/resume state machine (5 tests)
   NightLightDetectionTests.cs   — ParseRegistryData: ON (0x15, 0x12), OFF (0x13, 0x10), null, unknown byte, too-short data (7 tests)
+  ModeManagerTests.cs           — inhibitor model, screen-saver-while-locked scenario, mode switching (10 tests)
 ```
 
-Total tests: **49/49 passing**
+Total tests: **59/59 passing**
 
 ### Running tests
 ```
@@ -59,6 +60,7 @@ The test suite covers all logic that does not require a live GPU or display outp
 | `NightLightDetectionTests.cs` | `NightLightDetection.ParseRegistryData` |
 | `UserSettingsManagerTests.cs` | Settings save/load/migrate, whitebalance clamping |
 | `DiagnosticsViewModelTests.cs` | `DiagnosticsViewModel` ring buffer, status ratchet, filtering |
+| `ModeManagerTests.cs` | `ModeManager` inhibitor model, screen-saver-while-locked bug scenario, mode switching |
 | `DependencyInjectionTests.cs` | Ninject container wiring (design-time and runtime) |
 
 `DetectBlackBars` and `GetSamplingRectangle` are declared `internal static` on `DesktopDuplicatorReader`. Tests call them directly, supplying a `BitmapData` obtained by locking a `System.Drawing.Bitmap` constructed in-process — no GPU involved.
@@ -365,6 +367,20 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 7. **White Balance mode icon alignment fixed:** Row heights changed from `1*` to `auto`; icon `VerticalAlignment` set to `Top` and top margins unified to `8px` (matching the label top margin); description TextBlocks given matching `8px` top margin. Removes the visual gap between icons and their labels.
 8. Version bumped to 3.4.1
 
+### 2026-03-23 — ModeManager architecture (v3.5.0)
+1. `IModeManager` interface and `ModeManager` implementation added (`Util/IModeManager.cs`, `Util/ModeManager.cs`). ModeManager is the sole writer of `TransferActive`.
+2. Inhibitor model: `AddInhibitor(source)` / `RemoveInhibitor(source)` — sources tracked independently in a `HashSet`; user intent saved on first inhibitor, restored when last clears.
+3. **Screen-saver-while-locked bug fixed:** session lock and screen saver previously shared `_transferActiveBeforeLock`; if the screen saver fired while locked it would overwrite the saved state, preventing LEDs from restoring after unlock. Each source now has its own inhibitor entry.
+4. `SleepWakeController` retargeted to `IModeManager` — calls `AddInhibitor("sleep")` / `RemoveInhibitor("sleep")` instead of setting `TransferActive` directly. `_wasActive` field deleted.
+5. `App.xaml.cs` session-lock and screen-saver handlers retargeted to `AddInhibitor("lock")` / `AddInhibitor("screensaver")`. `_transferActiveBeforeLock` field deleted.
+6. `TcpControlServer` updated: `STATUS` now returns `{"status":"on/off","mode":"screen/sound/gamer"}`; new `MODE SCREEN/SOUND/GAMER/STATUS` commands added. Takes `IModeManager` as new constructor parameter.
+7. `ModeManagerFake` added to `Fakes/` for design-time DI.
+8. `IModeManager` bound in `SetupDependencyInjection` (design-time: fake; runtime: real).
+9. `SendRandomColors` marked as `DEBUG-ONLY` in `IUserSettings` and at its usage site in `SerialStream`.
+10. 10 new tests in `ModeManagerTests.cs` (including `ScreenSaverWhileLocked_TransferActiveRestoredAfterBoth`); 5 `SleepWakeTests` rewritten to use `Mock<IModeManager>`. Total tests: 59/59.
+11. `WhatsNew.xaml` updated: 3.5.0 section added, TCP API table updated with new commands, column width widened for longer command names.
+12. Version bumped to 3.5.0.
+
 ### 2026-03-23 — Night Light fix, UI polish, documentation update (v3.4.2)
 1. **Night Light byte[18]=0x12 not detected as On:** Different Windows builds write different base byte values to the CloudStore REG_BINARY blob. Previously only `0x15` was treated as On; `0x12` (observed on this machine) was silently classified as Off. `ParseRegistryData` now checks `data[18] == 0x15 || data[18] == 0x12`. Known value map: `0x12` / `0x15` = On; `0x10` / `0x13` = Off. Full blob is now logged on every change to aid future diagnosis of further variants.
 2. **Night Light state changes not visible in Diagnostics tab:** State change log was at `Debug` level; `ObservableCollectionNLogTarget` captures `Info+`. Changed to `_log.Info` so transitions appear in the Diagnostics UI.
@@ -374,6 +390,42 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 6. **What's New page:** Sections reordered newest-first so the most recent changes appear at the top. "About" menu label renamed to "What's New".
 7. **Dead code removed:** `Tools/NighlightDetectionModelGenerator/` deleted — the ML model generator was made redundant by the registry-read approach in v3.4.0. Removing it also eliminated the duplicate `.sln` file that caused VS Code to prompt for solution selection on every open.
 8. Version bumped to 3.4.2.
+
+---
+
+## ModeManager Architecture (v3.5.0)
+
+### IModeManager / ModeManager (`Util/IModeManager.cs`, `Util/ModeManager.cs`)
+
+`ModeManager` is the sole writer of `IUserSettings.TransferActive`. All code that needs to pause or resume LEDs calls `AddInhibitor` / `RemoveInhibitor` rather than writing `TransferActive` directly.
+
+**Inhibitor model:**
+- When the first inhibitor is added: user intent (`TransferActive`) is saved, `TransferActive` is forced to `false`
+- When a subsequent inhibitor is added: tracked silently (no state change)
+- When the last inhibitor is removed: `TransferActive` is restored to the saved user intent
+- Multiple inhibitors can be active simultaneously; the saved intent is never overwritten by a later inhibitor
+
+**Inhibitor sources:**
+
+| Source | Added by | Removed by |
+|---|---|---|
+| `"sleep"` | `SleepWakeController.OnSuspend()` | `SleepWakeController.OnResume()` |
+| `"lock"` | `App.xaml.cs` `SessionLock` event | `App.xaml.cs` `SessionUnlock` event |
+| `"screensaver"` | `App.xaml.cs` screen saver timer | `App.xaml.cs` screen saver timer |
+
+**Mode model (MVP):**
+- `ActiveMode` defaults to `ScreenCapture` on every launch; never persisted
+- `SetMode()` updates `ActiveMode` and logs the change; no pipeline start/stop yet
+- `TODO(SoundToLight/GamerMode)`: when those pipelines are implemented, `SetMode()` will stop the current pipeline and start the new one
+
+**External code interaction:**
+- Tray icon toggle, UI toggle, TCP ON/OFF: write `TransferActive` directly to `IUserSettings`
+- `ModeManager.OnSettingsPropertyChanged` hears the write and updates `_userTransferActive`
+- If currently inhibited, it immediately snaps `TransferActive` back to `false`
+
+**TCP extensions (`TcpControlServer`):**
+- `STATUS` now returns `{"status":"on/off","mode":"screen/sound/gamer"}`
+- New commands: `MODE SCREEN`, `MODE SOUND`, `MODE GAMER`, `MODE STATUS`
 
 ---
 

@@ -135,6 +135,9 @@ namespace adrilight
                 var allBlack = true;
                 foreach (Spot spot in SpotSet.Spots)
                 {
+                    // DEBUG-ONLY path: SendRandomColors bypasses spot colours entirely and sends a
+                    // per-frame rainbow for hardware testing. This is not a LightingMode and must
+                    // not be used in production. See IUserSettings.SendRandomColors.
                     if (!UserSettings.SendRandomColors)
                     {
                         // BGR order — must match Arduino sketch expectation (see ColourByteOrder constants above)

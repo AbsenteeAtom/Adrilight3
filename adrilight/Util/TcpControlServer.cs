@@ -13,14 +13,16 @@ namespace adrilight.Util
         private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
 
         private readonly IUserSettings _userSettings;
+        private readonly IModeManager _modeManager;
         private readonly int _port;
         private TcpListener _listener;
         private CancellationTokenSource _cts;
         private Task _listenerTask;
 
-        public TcpControlServer(IUserSettings userSettings, int port = 5080)
+        public TcpControlServer(IUserSettings userSettings, IModeManager modeManager, int port = 5080)
         {
             _userSettings = userSettings ?? throw new ArgumentNullException(nameof(userSettings));
+            _modeManager = modeManager ?? throw new ArgumentNullException(nameof(modeManager));
             _port = port;
         }
 
@@ -100,9 +102,29 @@ namespace adrilight.Util
                             break;
 
                         case "STATUS":
+                            var statusMode = ModeToString(_modeManager.ActiveMode);
                             response = _userSettings.TransferActive
-                                ? "{\"status\":\"on\"}"
-                                : "{\"status\":\"off\"}";
+                                ? $"{{\"status\":\"on\",\"mode\":\"{statusMode}\"}}"
+                                : $"{{\"status\":\"off\",\"mode\":\"{statusMode}\"}}";
+                            break;
+
+                        case "MODE SCREEN":
+                            _modeManager.SetMode(LightingMode.ScreenCapture);
+                            response = "{\"status\":\"ok\",\"mode\":\"screen\"}";
+                            break;
+
+                        case "MODE SOUND":
+                            _modeManager.SetMode(LightingMode.SoundToLight);
+                            response = "{\"status\":\"ok\",\"mode\":\"sound\"}";
+                            break;
+
+                        case "MODE GAMER":
+                            _modeManager.SetMode(LightingMode.GamerMode);
+                            response = "{\"status\":\"ok\",\"mode\":\"gamer\"}";
+                            break;
+
+                        case "MODE STATUS":
+                            response = $"{{\"mode\":\"{ModeToString(_modeManager.ActiveMode)}\"}}";
                             break;
 
                         case "EXIT":
@@ -127,6 +149,14 @@ namespace adrilight.Util
                 _log.Warn(ex, "TcpControlServer error handling client.");
             }
         }
+
+        private static string ModeToString(LightingMode mode) => mode switch
+        {
+            LightingMode.ScreenCapture => "screen",
+            LightingMode.SoundToLight  => "sound",
+            LightingMode.GamerMode     => "gamer",
+            _                          => "screen"
+        };
 
         public void Dispose()
         {

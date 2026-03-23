@@ -7,71 +7,66 @@ namespace adrilight.Tests
     [TestClass]
     public class SleepWakeTests
     {
-        private Mock<IUserSettings> BuildSettings(bool awarenessEnabled, bool transferActive)
+        private (SleepWakeController controller, Mock<IUserSettings> settings, Mock<IModeManager> modeManager)
+            Build(bool awarenessEnabled)
         {
-            var mock = new Mock<IUserSettings>();
-            mock.SetupProperty(s => s.SleepWakeAwarenessEnabled, awarenessEnabled);
-            mock.SetupProperty(s => s.TransferActive, transferActive);
-            return mock;
+            var settings = new Mock<IUserSettings>();
+            settings.SetupGet(s => s.SleepWakeAwarenessEnabled).Returns(awarenessEnabled);
+            var modeManager = new Mock<IModeManager>();
+            var controller = new SleepWakeController(settings.Object, modeManager.Object);
+            return (controller, settings, modeManager);
         }
 
         [TestMethod]
-        public void OnSuspend_WhenEnabled_TurnsOffTransferAndSavesState()
+        public void OnSuspend_WhenEnabled_AddsInhibitor()
         {
-            var settings = BuildSettings(awarenessEnabled: true, transferActive: true);
-            var controller = new SleepWakeController(settings.Object);
+            var (controller, _, modeManager) = Build(awarenessEnabled: true);
 
             controller.OnSuspend();
 
-            Assert.IsFalse(settings.Object.TransferActive, "TransferActive should be false after suspend");
+            modeManager.Verify(m => m.AddInhibitor("sleep"), Times.Once());
         }
 
         [TestMethod]
-        public void OnResume_AfterSuspend_RestoresTransferActive()
+        public void OnResume_WhenEnabled_RemovesInhibitor()
         {
-            var settings = BuildSettings(awarenessEnabled: true, transferActive: true);
-            var controller = new SleepWakeController(settings.Object);
+            var (controller, _, modeManager) = Build(awarenessEnabled: true);
 
-            controller.OnSuspend(); // saves true, sets false
-            controller.OnResume();  // should restore true
+            controller.OnResume();
 
-            Assert.IsTrue(settings.Object.TransferActive, "TransferActive should be restored to true after wake");
+            modeManager.Verify(m => m.RemoveInhibitor("sleep"), Times.Once());
         }
 
         [TestMethod]
-        public void OnResume_WhenTransferWasAlreadyOff_DoesNotTurnOn()
+        public void OnSuspend_WhenDisabled_DoesNotAddInhibitor()
         {
-            var settings = BuildSettings(awarenessEnabled: true, transferActive: false);
-            var controller = new SleepWakeController(settings.Object);
-
-            controller.OnSuspend(); // saves false, sets false
-            controller.OnResume();  // should not turn on
-
-            Assert.IsFalse(settings.Object.TransferActive, "TransferActive should remain false if it was off before sleep");
-        }
-
-        [TestMethod]
-        public void OnSuspend_WhenDisabled_DoesNotChangeTransferActive()
-        {
-            var settings = BuildSettings(awarenessEnabled: false, transferActive: true);
-            var controller = new SleepWakeController(settings.Object);
+            var (controller, _, modeManager) = Build(awarenessEnabled: false);
 
             controller.OnSuspend();
 
-            Assert.IsTrue(settings.Object.TransferActive, "TransferActive should be unchanged when awareness is disabled");
+            modeManager.Verify(m => m.AddInhibitor(It.IsAny<string>()), Times.Never());
         }
 
         [TestMethod]
-        public void OnResume_WhenDisabled_DoesNotChangeTransferActive()
+        public void OnResume_WhenDisabled_DoesNotRemoveInhibitor()
         {
-            var settings = BuildSettings(awarenessEnabled: false, transferActive: false);
-            var controller = new SleepWakeController(settings.Object);
+            var (controller, _, modeManager) = Build(awarenessEnabled: false);
 
-            // Simulate a sleep/wake cycle with awareness disabled throughout
+            controller.OnResume();
+
+            modeManager.Verify(m => m.RemoveInhibitor(It.IsAny<string>()), Times.Never());
+        }
+
+        [TestMethod]
+        public void OnSuspend_ThenResume_WhenEnabled_AddsAndRemovesInhibitor()
+        {
+            var (controller, _, modeManager) = Build(awarenessEnabled: true);
+
             controller.OnSuspend();
             controller.OnResume();
 
-            Assert.IsFalse(settings.Object.TransferActive, "TransferActive should be unchanged when awareness is disabled");
+            modeManager.Verify(m => m.AddInhibitor("sleep"), Times.Once());
+            modeManager.Verify(m => m.RemoveInhibitor("sleep"), Times.Once());
         }
     }
 }

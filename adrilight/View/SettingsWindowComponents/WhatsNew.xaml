@@ -24,7 +24,7 @@
         <materialDesign:Card Margin="4 4 4 4" Grid.Row="0">
             <StackPanel Margin="38 28 38 28">
                 <TextBlock FontSize="24" FontWeight="Bold" Margin="0 0 0 8">adrilight</TextBlock>
-                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.4.2 — AbsenteeAtom Edition</TextBlock>
+                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.5.0 — AbsenteeAtom Edition</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 6">
                     Ambient LED lighting for Windows. Captures your screen in real time using the Desktop Duplication API,
                     calculates the average colour across zones around the edge of the screen, and drives a WS2812b LED
@@ -39,7 +39,29 @@
         <!-- What's new -->
         <materialDesign:Card Margin="4 0 4 4" Grid.Row="1">
             <StackPanel Margin="38 28 38 28">
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.4.2</TextBlock>
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.5.0</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Architecture</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● ModeManager architecture introduced as the foundation for future lighting modes
+                    (Sound to Light, Gamer Mode). The app continues to use Screen Capture mode in
+                    this version; the infrastructure is in place for future modes to be added cleanly.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● TCP STATUS command now includes the active mode in its response:
+                    {"status":"on","mode":"screen"}. New MODE commands: MODE SCREEN, MODE SOUND,
+                    MODE GAMER, MODE STATUS — see the TCP API reference below.
+                </TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fix</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Fixed: if the Windows screen saver activated while the session was already locked,
+                    the LEDs would not turn back on after the session was unlocked. The session-lock
+                    and screen-saver inhibitors previously shared a state variable; each is now tracked
+                    independently so all inhibitors must clear before LEDs resume.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.4.2</TextBlock>
 
                 <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Bug Fixes</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
@@ -214,10 +236,14 @@
                 </TextBlock>
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="120" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="auto" />
+                        <RowDefinition Height="auto" />
+                        <RowDefinition Height="auto" />
+                        <RowDefinition Height="auto" />
                         <RowDefinition Height="auto" />
                         <RowDefinition Height="auto" />
                         <RowDefinition Height="auto" />
@@ -231,9 +257,17 @@
                     <TextBlock Grid.Row="2" Grid.Column="0" FontFamily="Consolas" Margin="0 2 16 2">TOGGLE</TextBlock>
                     <TextBlock Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" Margin="0 2 0 2">Toggle on/off  →  {"status":"on"} or {"status":"off"}</TextBlock>
                     <TextBlock Grid.Row="3" Grid.Column="0" FontFamily="Consolas" Margin="0 2 16 2">STATUS</TextBlock>
-                    <TextBlock Grid.Row="3" Grid.Column="1" TextWrapping="Wrap" Margin="0 2 0 2">Query current state  →  {"status":"on"} or {"status":"off"}</TextBlock>
-                    <TextBlock Grid.Row="4" Grid.Column="0" FontFamily="Consolas" Margin="0 2 16 2">EXIT</TextBlock>
-                    <TextBlock Grid.Row="4" Grid.Column="1" TextWrapping="Wrap" Margin="0 2 0 2">Shut down adrilight  →  {"status":"exiting"}</TextBlock>
+                    <TextBlock Grid.Row="3" Grid.Column="1" TextWrapping="Wrap" Margin="0 2 0 2">Query state and mode  →  {"status":"on","mode":"screen"}</TextBlock>
+                    <TextBlock Grid.Row="4" Grid.Column="0" FontFamily="Consolas" Margin="0 2 16 2">MODE SCREEN</TextBlock>
+                    <TextBlock Grid.Row="4" Grid.Column="1" TextWrapping="Wrap" Margin="0 2 0 2">Switch to screen capture mode  →  {"status":"ok","mode":"screen"}</TextBlock>
+                    <TextBlock Grid.Row="5" Grid.Column="0" FontFamily="Consolas" Margin="0 2 16 2">MODE SOUND</TextBlock>
+                    <TextBlock Grid.Row="5" Grid.Column="1" TextWrapping="Wrap" Margin="0 2 0 2">Switch to sound reactive mode  →  {"status":"ok","mode":"sound"}</TextBlock>
+                    <TextBlock Grid.Row="6" Grid.Column="0" FontFamily="Consolas" Margin="0 2 16 2">MODE GAMER</TextBlock>
+                    <TextBlock Grid.Row="6" Grid.Column="1" TextWrapping="Wrap" Margin="0 2 0 2">Switch to gamer mode  →  {"status":"ok","mode":"gamer"}</TextBlock>
+                    <TextBlock Grid.Row="7" Grid.Column="0" FontFamily="Consolas" Margin="0 2 16 2">MODE STATUS</TextBlock>
+                    <TextBlock Grid.Row="7" Grid.Column="1" TextWrapping="Wrap" Margin="0 2 0 2">Query active mode  →  {"mode":"screen"}</TextBlock>
+                    <TextBlock Grid.Row="8" Grid.Column="0" FontFamily="Consolas" Margin="0 2 16 2">EXIT</TextBlock>
+                    <TextBlock Grid.Row="8" Grid.Column="1" TextWrapping="Wrap" Margin="0 2 0 2">Shut down adrilight  →  {"status":"exiting"}</TextBlock>
                 </Grid>
             </StackPanel>
         </materialDesign:Card>
