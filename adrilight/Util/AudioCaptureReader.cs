@@ -139,13 +139,17 @@ namespace adrilight.Util
         private void OnAudioData(float[] samples, int count)
         {
             if (!_isRunning) return;
-            int ch = Math.Max(1, _capture.Channels);
-            int i  = 0;
+            int ch    = Math.Max(1, _capture.Channels);
+            // Only mix front-L (ch 0) and front-R (ch 1).  Surround/7.1 devices report many
+            // channels, but stereo content (e.g. YouTube) only populates the first two.
+            // Averaging all channels dilutes the signal proportionally, making beat detection fail.
+            int useCh = Math.Min(ch, 2);
+            int i     = 0;
             while (i + ch <= count)
             {
                 float mono = 0;
-                for (int c = 0; c < ch; c++) mono += samples[i + c];
-                mono /= ch;
+                for (int c = 0; c < useCh; c++) mono += samples[i + c];
+                mono /= useCh;
 
                 _monoBuffer[_bufferPos++] = mono;
                 i += ch;
@@ -181,7 +185,7 @@ namespace adrilight.Util
             // because the smoother caught up to rawBass within ~300 ms, after which the
             // threshold was always above rawBass and reshuffles never fired.
             float sensScale  = _settings.SoundToLightSensitivity / 50f;
-            float beatThresh = Math.Max(0.03f / sensScale, 0.005f);
+            float beatThresh = Math.Max(0.005f / sensScale, 0.0005f);
             bool  isBeat     = rawBass > beatThresh;
 
             long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -189,7 +193,7 @@ namespace adrilight.Util
             {
                 _lastReshuffleMs = nowMs;
                 ShuffleSpotAssignments();
-                _log.Debug("Beat detected — reshuffled LED assignments.");
+                _log.Info($"Beat detected (rawBass={rawBass:F4}) — reshuffled LED assignments.");
             }
 
             ApplyToSpots(fftData);
@@ -212,7 +216,8 @@ namespace adrilight.Util
             float decay     = DecayAlpha(smoothing);
             float sensScale = sens / 50f;
             int   limit     = fftData.Length / 2;
-            const float reference = 0.01f;
+            // reference calibrated for a 2-channel mono mix (front-L + front-R only).
+            const float reference = 0.04f;
 
             // Compute per-band energy: per-bin-average RMS, normalised by the single-bin reference.
             // Using per-bin average keeps sensitivity consistent regardless of band width.
