@@ -51,6 +51,11 @@
                             Command="{Binding AcknowledgeCommand}"
                             Style="{StaticResource MaterialDesignOutlinedButton}"
                             Height="30" Padding="12 0"/>
+                    <Button DockPanel.Dock="Right"
+                            Content="Copy log"
+                            Command="{Binding CopyToClipboardCommand}"
+                            Style="{StaticResource MaterialDesignOutlinedButton}"
+                            Height="30" Padding="12 0" Margin="0 0 8 0"/>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="Show:" VerticalAlignment="Center" Margin="0 0 8 0"
                                    Foreground="{DynamicResource MaterialDesignBodyLight}"/>

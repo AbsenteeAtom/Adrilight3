@@ -2,6 +2,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NLog;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Text;
+using System.Windows;
 using System.Windows.Input;
 
 namespace adrilight.ViewModel
@@ -14,7 +17,8 @@ namespace adrilight.ViewModel
 
         public DiagnosticsViewModel()
         {
-            AcknowledgeCommand = new RelayCommand(Acknowledge);
+            AcknowledgeCommand      = new RelayCommand(Acknowledge);
+            CopyToClipboardCommand  = new RelayCommand(CopyToClipboard);
         }
 
         // ── Entries ──────────────────────────────────────────────────────────
@@ -83,11 +87,20 @@ namespace adrilight.ViewModel
 
         // ── Commands ──────────────────────────────────────────────────────────
 
-        public ICommand AcknowledgeCommand { get; }
+        public ICommand AcknowledgeCommand     { get; }
+        public ICommand CopyToClipboardCommand { get; }
 
         public void Acknowledge()
         {
             Status = DiagnosticStatus.Ok;
+        }
+
+        private void CopyToClipboard()
+        {
+            var sb = new StringBuilder();
+            foreach (var e in FilteredEntries.Reverse())
+                sb.AppendLine($"{e.Timestamp:yyyy-MM-dd HH:mm:ss}  {e.LevelDisplay,-5}  {e.ShortLogger,-30}  {e.Message}");
+            Clipboard.SetText(sb.ToString());
         }
 
         // ── Entry ingestion ───────────────────────────────────────────────────
