@@ -376,10 +376,10 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 4. **`DesktopDuplicatorReader`** gains `IModeManager` constructor param; subscribes to `PropertyChanged`; `shouldBeRunning` now gated on `ActiveMode == ScreenCapture`. DDR shuts itself off automatically when switching to Sound to Light.
 5. **`IAudioCaptureProvider`** interface + **`WasapiAudioCaptureProvider`** implementation — WASAPI hardware not accessed until `Start()` (safe for DI and tests).
 6. **`AudioCaptureReader`** (`ILightingMode`, `ModeId = SoundToLight`) — final design after redesign in 2026-03-24 session:
-   - 1024-sample circular mono buffer; accumulates stereo→mono-mixed samples from WASAPI callback.
-   - Per-buffer: apply Hann window → `FastFourierTransform.FFT` → 32 logarithmically-spaced frequency bands (20 Hz – 20 kHz). Each band energy = per-bin-average RMS, normalised by `reference = 0.01f`.
+   - 1024-sample circular mono buffer; accumulates front-L+front-R (channels 0 and 1 only) mono-mixed samples from WASAPI callback. Surround devices report many channels but stereo content only populates ch 0/1; mixing all channels would dilute amplitude.
+   - Per-buffer: apply Hann window → `FastFourierTransform.FFT` → 32 logarithmically-spaced frequency bands (20 Hz – 20 kHz). Each band energy = per-bin-average RMS, normalised by `reference = 0.04f` (calibrated for 2-channel mono mix).
    - Each LED randomly assigned a band index (0–31). Band colour from `WavelengthToRgb(FrequencyToWavelength(centerHz))` — log mapping 20 Hz→700 nm (red) to 20 kHz→400 nm (violet); Bruton approximation.
-   - Strong bass hit (rawBass > `_bassSmoothed × beatMult`, rate-limited to once/second) reshuffles all LED→band assignments.
+   - Strong bass hit (`rawBass > max(0.005 / sensScale, 0.0005)`, rate-limited to once/second) reshuffles all LED→band assignments. Logs at Info level so visible in Diagnostics tab.
    - Per-spot exponential smoothing: `attack = (101-s)/100 * 0.95 + 0.04`, `decay = (101-s)/100 * 0.35 + 0.01`.
    - RGB gain (`SoundToLightRedGain/GreenGain/BlueGain`) applied per-channel with `Math.Clamp` before byte conversion.
    - Locks `SpotSet.Lock`, writes all spots, sets `IsDirty = true` every FFT run.
@@ -426,6 +426,12 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 7. **Spurious 'no pipeline' warning suppressed:** `ModeManager.SetMode()` no longer warns when `_activeMode == ScreenCapture` — `DesktopDuplicatorReader` manages itself via `PropertyChanged` and intentionally has no `ILightingMode` entry.
 8. **Diagnostics Copy log button:** `CopyToClipboardCommand` added to `DiagnosticsViewModel`; copies all `FilteredEntries` (oldest-first, full timestamp/level/logger/message) to clipboard. "Copy log" button added to filter toolbar in `Diagnostics.xaml`.
 9. **AudioCaptureReaderTests updated:** `MakeSettings` mock sets up gain properties; `FrequencyToWavelength_20kHz_Returns400nm` replaces 10 kHz variant; old band-model tests (`BuildBands_Returns32Bands`, `BandBinLo_NonDecreasingAcrossBands`, `LowBand_HasWarmColor`, `HighBand_HasCoolColor`, `BurstAtAssignedBand_LightsUpSpot`, `HighSensitivity_BrighterThanLowSensitivity`) added. Total tests: 86/86.
+
+### 2026-03-24 — Beat detection fix + surround device mono mix fix (v3.6.0 continued)
+1. **Beat detection replaced:** Dynamic threshold (`rawBass > smoothedBass × multiplier`) failed because the smoother adapted to `rawBass` within ~300 ms; after warmup the threshold was always ≥ rawBass so reshuffles never fired. Replaced with a simple sensitivity-scaled fixed floor: `beatThresh = max(0.005 / sensScale, 0.0005)`. Rate limiting (1000 ms) prevents over-triggering.
+2. **Surround device mono mix fixed:** WASAPI loopback on 7.1/surround devices reports 8 channels but stereo content (YouTube, Spotify) only populates channels 0 and 1 (Front L/R). Averaging all 8 channels diluted the mono signal to ¼ amplitude, making `rawBass` too small to cross any beat threshold. Fix: cap mono mix at 2 channels (`useCh = Math.Min(ch, 2)`) while still striding by the full channel count so the sample pointer stays aligned. `reference` raised from `0.01f` → `0.04f` (×4) in `ApplyToSpots` to compensate for the now-higher amplitude and maintain the same LED brightness.
+3. **Beat detection log promoted to Info:** `"Beat detected (rawBass=...)"` now logs at Info level so it appears in the Diagnostics tab. Previously Debug-only so it was invisible there.
+4. **AudioCaptureReaderTests stabilised:** `BurstAtAssignedBand_LightsUpSpot` and `HighSensitivity_BrighterThanLowSensitivity` updated with a priming-frame pattern — one frame is fed before reading `SpotBins[0]` to consume any reshuffle triggered by the new low threshold; the 1000 ms rate limit then keeps the assignment stable for all measurement frames. Total tests: 86/86.
 
 ---
 
