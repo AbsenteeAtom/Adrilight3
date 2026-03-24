@@ -42,11 +42,11 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 
 ## What's new
 
-### 3.6.1
+### 3.6.2
 
 - **Sound to Light: beat-triggered reshuffles now fire reliably** — the previous beat detection compared the raw bass level against a smoothed running average. The smoother caught up within ~300 ms, after which the threshold was always above the signal and reshuffles never fired after the first few seconds of music. Replaced with a simple sensitivity-scaled fixed floor threshold; the rate limit (once per second) prevents over-triggering
 - **Sound to Light: surround/7.1 audio devices now work correctly** — WASAPI loopback on surround devices reports multiple channels (e.g. 8 for 7.1), but stereo content from browsers and media players only populates the front-left and front-right channels. Mixing all channels was diluting the mono signal by up to 4×, making beat detection fail silently. The mono mix is now capped at 2 channels (front-L + front-R) regardless of the device channel count
-- **Beat events visible in Diagnostics tab** — each reshuffle now logs a `Beat detected (rawBass=…)` entry at Info level, visible in the Diagnostics tab in real time
+- **All settings changes logged to Diagnostics tab** — every user setting change now appears in the Diagnostics tab in real time, showing the property name and new value
 
 ### 3.6.0
 
