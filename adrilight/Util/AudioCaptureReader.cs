@@ -67,12 +67,9 @@ namespace adrilight.Util
         private FreqBand[] _currentBands;
 
         // Beat detection state
-        private float _bassSmoothed;
         private long  _lastReshuffleMs;
 
         private const int   ReshuffleRateLimitMs = 1000;
-        private const float BassAttackAlpha      = 0.3f;
-        private const float BassDecayAlpha       = 0.05f;
 
         private volatile bool _isRunning;
 
@@ -94,7 +91,6 @@ namespace adrilight.Util
         {
             if (_isRunning) return;
             _bufferPos       = 0;
-            _bassSmoothed    = 0f;
             _lastReshuffleMs = 0;
             _isRunning = true;
             _capture.Start(OnAudioData);   // sets SampleRate / Channels
@@ -180,12 +176,12 @@ namespace adrilight.Util
                 bassEnergy += fftData[i].X * fftData[i].X + fftData[i].Y * fftData[i].Y;
             float rawBass = MathF.Sqrt(bassEnergy);
 
-            Smooth(ref _bassSmoothed, rawBass, BassAttackAlpha, BassDecayAlpha);
-
-            // Threshold: dynamic average × multiplier; multiplier shrinks as sensitivity rises
-            // sens=0 → ×2.0 (needs to be double the average); sens=100 → ×1.0 (any above-average hit fires)
-            float beatMult   = 2.0f - (_settings.SoundToLightSensitivity / 100f) * 1.0f;
-            float beatThresh = Math.Max(_bassSmoothed * beatMult, 0.02f);
+            // Simple fixed threshold scaled by sensitivity — reliable with any music style.
+            // Dynamic comparison (rawBass vs smoothed average) was previously used but failed
+            // because the smoother caught up to rawBass within ~300 ms, after which the
+            // threshold was always above rawBass and reshuffles never fired.
+            float sensScale  = _settings.SoundToLightSensitivity / 50f;
+            float beatThresh = Math.Max(0.03f / sensScale, 0.005f);
             bool  isBeat     = rawBass > beatThresh;
 
             long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();

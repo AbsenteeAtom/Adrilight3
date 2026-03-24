@@ -12,7 +12,7 @@ namespace adrilight.Tests
     /// Tests for AudioCaptureReader — physics-inspired colour-frequency band model.
     ///
     /// Design:
-    ///   The 20 Hz – 10 kHz range is divided into NBands (32) logarithmically-spaced bands.
+    ///   The 20 Hz – 20 kHz range is divided into NBands (32) logarithmically-spaced bands.
     ///   Each LED is randomly assigned to a band; the band's centre frequency is mapped
     ///   logarithmically to a visible wavelength (700 nm red → 400 nm violet) and converted
     ///   to an RGB colour via the Bruton approximation.  Brightness tracks the per-bin-average
@@ -298,7 +298,17 @@ namespace adrilight.Tests
             var reader = MakeReader(MakeSettings(sensitivity: 80, smoothing: 1), ss, capture);
             reader.Start();
 
-            int   bandIdx = reader.SpotBins[0];                          // band index (0-31)
+            // Priming frame: the new fixed beat threshold is low enough that a 1.0-amplitude
+            // bass sine fires a reshuffle on the very first frame.  Feed one frame now to
+            // consume that reshuffle; the 1000 ms rate limit then keeps the assignment stable
+            // for all subsequent measurement frames.
+            {
+                int   primeBand = reader.SpotBins[0];
+                float primeFreq = BandBinLo(primeBand, sampleRate) * sampleRate / (float)FftLength;
+                getCallback()(SineStereo(primeFreq, sampleRate, amplitude: 1.0f), FftLength * 2);
+            }
+
+            int   bandIdx = reader.SpotBins[0];                          // stable band index (0-31)
             int   binLo   = BandBinLo(bandIdx, sampleRate);              // lowest FFT bin in band
             float freq    = binLo * sampleRate / (float)FftLength;       // Hz for that bin
             var   burst   = SineStereo(freq, sampleRate, amplitude: 1.0f);
@@ -326,6 +336,17 @@ namespace adrilight.Tests
 
             readerLow.Start();
             readerHigh.Start();
+
+            // Priming frames: consume any reshuffle triggered by the low beat threshold so that
+            // the assignments read below are stable for the 1000 ms measurement window.
+            {
+                int   pBandLow  = readerLow.SpotBins[0];
+                int   pBandHigh = readerHigh.SpotBins[0];
+                float pFreqLow  = BandBinLo(pBandLow,  sampleRate) * sampleRate / (float)FftLength;
+                float pFreqHigh = BandBinLo(pBandHigh, sampleRate) * sampleRate / (float)FftLength;
+                getCallbackLow()(SineStereo(pFreqLow,  sampleRate, 1.0f), FftLength * 2);
+                getCallbackHigh()(SineStereo(pFreqHigh, sampleRate, 1.0f), FftLength * 2);
+            }
 
             // Drive each reader with a sine at the low-edge frequency of its spot-0 band
             int   bandLow    = readerLow.SpotBins[0];
@@ -366,7 +387,7 @@ namespace adrilight.Tests
         [TestMethod]
         public void Beat_TriggersReshuffle()
         {
-            // Bass burst with _bassSmoothed=0 at start → rawBass > max(0,0.05)=0.05 → beat fires.
+            // Bass burst at 60 Hz, amplitude 1.0 → rawBass >> beatThresh → reshuffle fires.
             var (capture, getCallback) = MakeCapture();
             var (ss, _, _) = MakeSpotSet();
             var reader = MakeReader(MakeSettings(sensitivity: 80), ss, capture);
