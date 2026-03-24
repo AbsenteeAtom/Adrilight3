@@ -4,7 +4,7 @@
 
 > An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
 
-**adrilight 3.6.1 — AbsenteeAtom Edition**
+**adrilight 3.6.2 — AbsenteeAtom Edition**
 Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
 The original author retired the project; this fork modernises it for .NET 8 and adds new features.
 
