@@ -46,8 +46,8 @@ namespace adrilight.Fakes
         public byte SoundToLightSensitivity { get; set; } = 50;
         public byte SoundToLightSmoothing { get; set; } = 50;
         public float SoundToLightRedGain   { get; set; } = 0.6f;
-        public float SoundToLightGreenGain { get; set; } = 0.85f;
-        public float SoundToLightBlueGain  { get; set; } = 1.0f;
+        public float SoundToLightGreenGain { get; set; } = 1.05f;
+        public float SoundToLightBlueGain  { get; set; } = 1.5f;
 #pragma warning disable CS0067
         public event PropertyChangedEventHandler PropertyChanged;
 #pragma warning restore CS0067

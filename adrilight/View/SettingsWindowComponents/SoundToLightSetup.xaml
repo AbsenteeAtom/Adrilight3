@@ -73,8 +73,8 @@
                 <TextBlock FontWeight="Bold">Colour Channel Gain</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 6 0 12" TextAlignment="Justify">
                     Adjust the relative intensity of each colour channel. Values above 1.0 boost a channel;
-                    values below 1.0 attenuate it. Defaults are Red 0.60, Green 0.85, Blue 1.00 — tuned for
-                    a warm, slightly blue-shifted palette across most LED strips.
+                    values below 1.0 attenuate it. Defaults are Red 0.60, Green 1.05, Blue 1.50 — tuned for
+                    a cool, blue-shifted palette across most LED strips.
                 </TextBlock>
 
                 <!-- Red -->

@@ -44,8 +44,8 @@ namespace adrilight
         private byte _soundToLightSensitivity = 50;
         private byte _soundToLightSmoothing = 50;
         private float _soundToLightRedGain   = 0.6f;
-        private float _soundToLightGreenGain = 0.85f;
-        private float _soundToLightBlueGain  = 1.0f;
+        private float _soundToLightGreenGain = 1.05f;
+        private float _soundToLightBlueGain  = 1.5f;
 
         public int ConfigFileVersion { get => _configFileVersion; set => SetProperty(ref _configFileVersion, value); }
         public bool Autostart { get => _autostart; set => SetProperty(ref _autostart, value); }
