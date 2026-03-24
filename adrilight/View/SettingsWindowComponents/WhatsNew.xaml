@@ -24,7 +24,7 @@
         <materialDesign:Card Margin="4 4 4 4" Grid.Row="0">
             <StackPanel Margin="38 28 38 28">
                 <TextBlock FontSize="24" FontWeight="Bold" Margin="0 0 0 8">adrilight</TextBlock>
-                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.6.1 — AbsenteeAtom Edition</TextBlock>
+                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.6.2 — AbsenteeAtom Edition</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 6">
                     Ambient LED lighting for Windows. Captures your screen in real time using the Desktop Duplication API,
                     calculates the average colour across zones around the edge of the screen, and drives a WS2812b LED
@@ -39,7 +39,16 @@
         <!-- What's new -->
         <materialDesign:Card Margin="4 0 4 4" Grid.Row="1">
             <StackPanel Margin="38 28 38 28">
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.6.1</TextBlock>
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.6.2</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Diagnostics</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● All settings changes now appear in the Diagnostics tab in real time — each entry
+                    shows the setting name and its new value, making it easy to confirm that a change
+                    was applied and persisted.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.6.1</TextBlock>
 
                 <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Sound to Light — Bug Fixes</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
