@@ -24,7 +24,7 @@
         <materialDesign:Card Margin="4 4 4 4" Grid.Row="0">
             <StackPanel Margin="38 28 38 28">
                 <TextBlock FontSize="24" FontWeight="Bold" Margin="0 0 0 8">adrilight</TextBlock>
-                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.6.0 — AbsenteeAtom Edition</TextBlock>
+                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.6.1 — AbsenteeAtom Edition</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 6">
                     Ambient LED lighting for Windows. Captures your screen in real time using the Desktop Duplication API,
                     calculates the average colour across zones around the edge of the screen, and drives a WS2812b LED
@@ -39,7 +39,29 @@
         <!-- What's new -->
         <materialDesign:Card Margin="4 0 4 4" Grid.Row="1">
             <StackPanel Margin="38 28 38 28">
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.6.0</TextBlock>
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.6.1</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Sound to Light — Bug Fixes</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Fixed: beat-triggered LED reshuffles stopped firing after the first few seconds of
+                    music. The previous beat detector compared the raw bass level against a smoothed
+                    running average; the smoother caught up within ~300 ms so the threshold was always
+                    above the signal. Replaced with a sensitivity-scaled fixed floor threshold — reshuffles
+                    now fire reliably on every strong bass hit, rate-limited to once per second.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Fixed: surround and 7.1 audio devices (e.g. 8-channel WASAPI output) did not work
+                    correctly. Stereo content from browsers and media players only populates the front-left
+                    and front-right channels; mixing all reported channels diluted the signal by up to 4×,
+                    making beat detection fail silently. The mono mix is now capped at front-L + front-R
+                    regardless of how many channels the device reports.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Beat events are now logged at Info level and appear in the Diagnostics tab in real
+                    time — useful for confirming the pipeline is responding to the music.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.6.0</TextBlock>
 
                 <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Sound to Light — improvements</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">

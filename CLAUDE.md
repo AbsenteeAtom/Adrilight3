@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.6.0 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.6.1 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -500,3 +500,5 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 - SharpDX assemblies are referenced directly from the NuGet cache via HintPath — not via PackageReference — because the netstandard build lacks `AcquireNextFrame`
 - The TCP control server listens on `127.0.0.1:5080`
 - Log files are written to `logs\` next to `adrilight.exe` — NLog is configured programmatically in `App.xaml.cs` (not `App.config`, which .NET 8 ignores for NLog)
+- **Sound to Light — beat detection must use a fixed threshold, not a dynamic one.** A dynamic threshold (`rawBass > smoothedBass × multiplier`) is self-defeating: the smoother adapts to the current level within ~300 ms so the threshold ends up ≥ rawBass permanently. Use `beatThresh = max(K / sensScale, floor)` where K is a fixed constant. Rate-limiting (once per second) handles over-triggering.
+- **Sound to Light — WASAPI multi-channel devices.** `WasapiLoopbackCapture` may report 6 or 8 channels on surround devices, but stereo content only populates channels 0 (Front-L) and 1 (Front-R). Always cap the mono mix at `useCh = Math.Min(ch, 2)` and divide by `useCh`, NOT by `ch`. Averaging all channels dilutes amplitude by ch/2, making beat detection and brightness both fail. `reference` in `ApplyToSpots` is calibrated for a 2-channel mono mix.
