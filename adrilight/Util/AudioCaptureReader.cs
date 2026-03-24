@@ -193,7 +193,7 @@ namespace adrilight.Util
             {
                 _lastReshuffleMs = nowMs;
                 ShuffleSpotAssignments();
-                _log.Info($"Beat detected (rawBass={rawBass:F4}) — reshuffled LED assignments.");
+                _log.Debug("Beat detected — reshuffled LED assignments.");
             }
 
             ApplyToSpots(fftData);

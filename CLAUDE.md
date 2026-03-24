@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.6.1 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.6.2 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -426,6 +426,11 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 7. **Spurious 'no pipeline' warning suppressed:** `ModeManager.SetMode()` no longer warns when `_activeMode == ScreenCapture` — `DesktopDuplicatorReader` manages itself via `PropertyChanged` and intentionally has no `ILightingMode` entry.
 8. **Diagnostics Copy log button:** `CopyToClipboardCommand` added to `DiagnosticsViewModel`; copies all `FilteredEntries` (oldest-first, full timestamp/level/logger/message) to clipboard. "Copy log" button added to filter toolbar in `Diagnostics.xaml`.
 9. **AudioCaptureReaderTests updated:** `MakeSettings` mock sets up gain properties; `FrequencyToWavelength_20kHz_Returns400nm` replaces 10 kHz variant; old band-model tests (`BuildBands_Returns32Bands`, `BandBinLo_NonDecreasingAcrossBands`, `LowBand_HasWarmColor`, `HighBand_HasCoolColor`, `BurstAtAssignedBand_LightsUpSpot`, `HighSensitivity_BrighterThanLowSensitivity`) added. Total tests: 86/86.
+
+### 2026-03-24 — Diagnostics polish (v3.6.2, local only)
+1. **Beat detection log demoted to Debug:** `"Beat detected"` was at Info so it appeared in the Diagnostics tab every second during music — too noisy. Changed back to `_log.Debug`.
+2. **All settings changes logged to Diagnostics tab:** `UserSettings.PropertyChanged` subscription added in `App.xaml.cs` immediately after the startup version-write, so that internal startup mutations are never captured. For every subsequent user-initiated change, logs `Setting changed: {PropertyName} = {value}` at Info level using reflection to read the new value. Three internal properties are excluded: `AdrilightVersion`, `ConfigFileVersion`, `InstallationId`.
+3. Version bumped to 3.6.2 (local build only, no GitHub release).
 
 ### 2026-03-24 — Beat detection fix + surround device mono mix fix (v3.6.0 continued)
 1. **Beat detection replaced:** Dynamic threshold (`rawBass > smoothedBass × multiplier`) failed because the smoother adapted to `rawBass` within ~300 ms; after warmup the threshold was always ≥ rawBass so reshuffles never fired. Replaced with a simple sensitivity-scaled fixed floor: `beatThresh = max(0.005 / sensScale, 0.0005)`. Rate limiting (1000 ms) prevents over-triggering.

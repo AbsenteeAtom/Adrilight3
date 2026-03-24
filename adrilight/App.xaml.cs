@@ -76,6 +76,28 @@ namespace adrilight
             if (!IsPrivateBuild && isNewVersion)
                 UserSettings.AdrilightVersion = VersionNumber;
 
+            // Log all user settings changes to the Diagnostics tab.
+            // Subscribe after the version write above so that internal startup
+            // mutations (migration, AdrilightVersion) never appear in the log.
+            UserSettings.PropertyChanged += (sender, e) =>
+            {
+                if (string.IsNullOrEmpty(e.PropertyName)) return;
+                // Skip internal tracking properties that are not user-initiated changes
+                if (e.PropertyName == nameof(IUserSettings.AdrilightVersion) ||
+                    e.PropertyName == nameof(IUserSettings.ConfigFileVersion) ||
+                    e.PropertyName == nameof(IUserSettings.InstallationId)) return;
+                try
+                {
+                    var prop  = sender.GetType().GetProperty(e.PropertyName);
+                    var value = prop?.GetValue(sender);
+                    _log.Info($"Setting changed: {e.PropertyName} = {value}");
+                }
+                catch
+                {
+                    _log.Info($"Setting changed: {e.PropertyName}");
+                }
+            };
+
             SetupNotifyIcon();
 
             if (!UserSettings.StartMinimized || isNewVersion)
