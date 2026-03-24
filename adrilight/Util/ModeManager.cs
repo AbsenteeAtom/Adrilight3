@@ -86,8 +86,10 @@ namespace adrilight.Util
                 if (!incoming.IsRunning)
                     incoming.Start();
             }
-            else
+            else if (_activeMode != LightingMode.ScreenCapture)
             {
+                // ScreenCapture is intentionally absent — DesktopDuplicatorReader manages itself
+                // via PropertyChanged. Any other mode missing a pipeline is unexpected.
                 _log.Warn($"No ILightingMode pipeline registered for {_activeMode}.");
             }
         }
