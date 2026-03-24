@@ -183,9 +183,9 @@ namespace adrilight.Util
             Smooth(ref _bassSmoothed, rawBass, BassAttackAlpha, BassDecayAlpha);
 
             // Threshold: dynamic average × multiplier; multiplier shrinks as sensitivity rises
-            // sens=0 → ×3.0 (fires only on very strong hits); sens=100 → ×1.5 (fires more readily)
-            float beatMult   = 3.0f - (_settings.SoundToLightSensitivity / 100f) * 1.5f;
-            float beatThresh = Math.Max(_bassSmoothed * beatMult, 0.05f);
+            // sens=0 → ×2.0 (needs to be double the average); sens=100 → ×1.0 (any above-average hit fires)
+            float beatMult   = 2.0f - (_settings.SoundToLightSensitivity / 100f) * 1.0f;
+            float beatThresh = Math.Max(_bassSmoothed * beatMult, 0.02f);
             bool  isBeat     = rawBass > beatThresh;
 
             long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
