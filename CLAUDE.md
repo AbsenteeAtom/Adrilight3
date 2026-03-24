@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.4.2 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.6.0 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -37,10 +37,10 @@ adrilight.Tests/
   SleepWakeTests.cs              — SleepWakeController suspend/resume state machine (5 tests)
   NightLightDetectionTests.cs   — ParseRegistryData: ON (0x15, 0x12), OFF (0x13, 0x10), null, unknown byte, too-short data (7 tests)
   ModeManagerTests.cs           — inhibitor model, screen-saver-while-locked scenario, mode switching, pipeline Start/Stop (12 tests)
-  AudioCaptureReaderTests.cs    — ModeId, Start/Stop wiring, zero-audio, bass/treble burst, sensitivity, pure helpers (20 tests)
+  AudioCaptureReaderTests.cs    — ModeId, Start/Stop wiring, zero-audio, burst at assigned band, sensitivity, band model helpers (BuildBands, BandBinLo, BandCenterFrequency), wavelength/colour pure helpers (20 tests)
 ```
 
-Total tests: **81/81 passing**
+Total tests: **86/86 passing**
 
 ### Running tests
 ```
@@ -51,7 +51,7 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 The test suite covers all logic that does not require a live GPU or display output. The hard boundary is the DXGI/Direct3D11 layer inside `DesktopDuplicator`.
 
-**What is covered (81 tests):**
+**What is covered (86 tests):**
 
 | Test file | What it exercises |
 |---|---|
@@ -62,7 +62,7 @@ The test suite covers all logic that does not require a live GPU or display outp
 | `UserSettingsManagerTests.cs` | Settings save/load/migrate, whitebalance clamping |
 | `DiagnosticsViewModelTests.cs` | `DiagnosticsViewModel` ring buffer, status ratchet, filtering |
 | `ModeManagerTests.cs` | `ModeManager` inhibitor model, screen-saver-while-locked bug scenario, mode switching, pipeline Start/Stop |
-| `AudioCaptureReaderTests.cs` | `AudioCaptureReader` Start/Stop wiring, zero-audio, bass/treble burst, sensitivity scaling, pure helpers (`TintColor`, `ClassifyZone`, `AttackAlpha`, `DecayAlpha`) |
+| `AudioCaptureReaderTests.cs` | `AudioCaptureReader` Start/Stop wiring, zero-audio, burst at assigned band, sensitivity scaling, band model helpers (`BuildBands`, `BandBinLo`, `BandCenterFrequency`), pure helpers (`WavelengthToRgb`, `FrequencyToWavelength`, `AttackAlpha`, `DecayAlpha`), beat detection |
 | `DependencyInjectionTests.cs` | Ninject container wiring (design-time and runtime) |
 
 `DetectBlackBars` and `GetSamplingRectangle` are declared `internal static` on `DesktopDuplicatorReader`. Tests call them directly, supplying a `BitmapData` obtained by locking a `System.Drawing.Bitmap` constructed in-process — no GPU involved.
@@ -375,14 +375,15 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 3. **`IModeManager` extended** with `INotifyPropertyChanged`; `ModeManager` now accepts `IEnumerable<ILightingMode>`, stops the outgoing pipeline and starts the incoming one in `SetMode()`, and raises `PropertyChanged(nameof(ActiveMode))`.
 4. **`DesktopDuplicatorReader`** gains `IModeManager` constructor param; subscribes to `PropertyChanged`; `shouldBeRunning` now gated on `ActiveMode == ScreenCapture`. DDR shuts itself off automatically when switching to Sound to Light.
 5. **`IAudioCaptureProvider`** interface + **`WasapiAudioCaptureProvider`** implementation — WASAPI hardware not accessed until `Start()` (safe for DI and tests).
-6. **`AudioCaptureReader`** (`ILightingMode`, `ModeId = SoundToLight`):
+6. **`AudioCaptureReader`** (`ILightingMode`, `ModeId = SoundToLight`) — final design after redesign in 2026-03-24 session:
    - 1024-sample circular mono buffer; accumulates stereo→mono-mixed samples from WASAPI callback.
-   - Per-buffer: apply Hann window → `FastFourierTransform.FFT` (forward, normalised by N) → three logarithmic band ranges → total-band RMS energy → normalise by `reference = 0.25` (NAudio FFT divides by N; peak bin magnitude for full-amplitude Hann-windowed sine = A/4) → `Clamp(rms/0.25 * sensitivity/50, 0, 1)`.
-   - Bands: bass 20–200 Hz → bottom spots (warm orange-red `(255, 60, 0)*level`), mid 200–2000 Hz → side spots (neutral white), treble 2–20 kHz → top spots (cool blue `(60, 120, 255)*level`).
-   - Spot zones classified by centroid Y: `cy > 65%` → Bass, `cy < 35%` → Treble, else Mid.
-   - Exponential smoothing: `attack = (101-s)/100 * 0.95 + 0.04`, `decay = (101-s)/100 * 0.35 + 0.01` (decay always slower than attack).
+   - Per-buffer: apply Hann window → `FastFourierTransform.FFT` → 32 logarithmically-spaced frequency bands (20 Hz – 20 kHz). Each band energy = per-bin-average RMS, normalised by `reference = 0.01f`.
+   - Each LED randomly assigned a band index (0–31). Band colour from `WavelengthToRgb(FrequencyToWavelength(centerHz))` — log mapping 20 Hz→700 nm (red) to 20 kHz→400 nm (violet); Bruton approximation.
+   - Strong bass hit (rawBass > `_bassSmoothed × beatMult`, rate-limited to once/second) reshuffles all LED→band assignments.
+   - Per-spot exponential smoothing: `attack = (101-s)/100 * 0.95 + 0.04`, `decay = (101-s)/100 * 0.35 + 0.01`.
+   - RGB gain (`SoundToLightRedGain/GreenGain/BlueGain`) applied per-channel with `Math.Clamp` before byte conversion.
    - Locks `SpotSet.Lock`, writes all spots, sets `IsDirty = true` every FFT run.
-7. **`IUserSettings` / `UserSettings` / `UserSettingsFake`** — added `SoundToLightSensitivity` (default 50) and `SoundToLightSmoothing` (default 50).
+7. **`IUserSettings` / `UserSettings` / `UserSettingsFake`** — added `SoundToLightSensitivity` (default 50), `SoundToLightSmoothing` (default 50), `SoundToLightRedGain` (0.6), `SoundToLightGreenGain` (1.05), `SoundToLightBlueGain` (1.50).
 8. **`App.xaml.cs`** — added `IAudioCaptureProvider → WasapiAudioCaptureProvider` singleton binding in runtime branch; `ILightingMode` convention binding already added in previous session.
 9. **`SettingsViewModel`** gains `IModeManager` constructor param; `IsScreenCaptureMode` / `IsSoundToLightMode` bool shim properties; `PropertyChanged` on `ActiveMode` propagates to both.
 10. **`SoundToLightSetup.xaml` + `.xaml.cs`** — Sensitivity and Smoothing sliders; `SoundToLightSelectableViewPart` (`Order = 75`).
@@ -414,6 +415,17 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 6. **What's New page:** Sections reordered newest-first so the most recent changes appear at the top. "About" menu label renamed to "What's New".
 7. **Dead code removed:** `Tools/NighlightDetectionModelGenerator/` deleted — the ML model generator was made redundant by the registry-read approach in v3.4.0. Removing it also eliminated the duplicate `.sln` file that caused VS Code to prompt for solution selection on every open.
 8. Version bumped to 3.4.2.
+
+### 2026-03-24 — Sound to Light redesign + UI additions (v3.6.0 continued)
+1. **Sound to Light physics redesign:** `AudioCaptureReader` rewritten twice. Final model: 32 logarithmically-spaced frequency bands (20 Hz – 20 kHz). Each LED randomly assigned a band; band colour derived from centre wavelength via `FrequencyToWavelength` (log mapping 20 Hz→700 nm, 20 kHz→400 nm) + `WavelengthToRgb` (Bruton approximation). Band energy = per-bin-average RMS of FFT bins in range, normalised by `reference`. Bass hit (above dynamic threshold derived from Sensitivity) reshuffles all assignments; rate-limited to once per second.
+2. **Ninject bug fixed:** `AudioCaptureReader` is `internal sealed` — Ninject.Extensions.Conventions 3.3.0 `SelectAllClasses()` skips non-public classes. Fixed with explicit `kernel.Bind<ILightingMode>().To<AudioCaptureReader>()` binding in `App.xaml.cs`.
+3. **Frequency range extended to 20 kHz:** `BandLowFrequency` and `FrequencyToWavelength` `fMax` raised from 10 000 to 20 000 Hz. Upper bands now capture high-frequency content (cymbals, hi-hats) and display blue/violet.
+4. **Brightness reference lowered:** `reference` constant in `ApplyToSpots` reduced from `0.25f` → `0.02f` → `0.01f` across two iterations, calibrated for real WASAPI loopback levels at typical listening volume.
+5. **RGB Colour Gain sliders:** `SoundToLightRedGain` (0.6), `SoundToLightGreenGain` (1.05), `SoundToLightBlueGain` (1.50) added to `IUserSettings`/`UserSettings`/`UserSettingsFake`. Applied per-channel with `Math.Clamp` in `AudioCaptureReader.ApplyToSpots` before byte conversion. Three sliders (range 0–2, ticks at 0.25, numeric F2 TextBox) added to `SoundToLightSetup.xaml`.
+6. **Tray mode menu:** `AddModeMenuItems()` helper added to `App.xaml.cs`. Adds a separator + `ToolStripMenuItem` per `LightingMode` value with `Checked` state; updated live via `_modeManager.PropertyChanged`.
+7. **Spurious 'no pipeline' warning suppressed:** `ModeManager.SetMode()` no longer warns when `_activeMode == ScreenCapture` — `DesktopDuplicatorReader` manages itself via `PropertyChanged` and intentionally has no `ILightingMode` entry.
+8. **Diagnostics Copy log button:** `CopyToClipboardCommand` added to `DiagnosticsViewModel`; copies all `FilteredEntries` (oldest-first, full timestamp/level/logger/message) to clipboard. "Copy log" button added to filter toolbar in `Diagnostics.xaml`.
+9. **AudioCaptureReaderTests updated:** `MakeSettings` mock sets up gain properties; `FrequencyToWavelength_20kHz_Returns400nm` replaces 10 kHz variant; old band-model tests (`BuildBands_Returns32Bands`, `BandBinLo_NonDecreasingAcrossBands`, `LowBand_HasWarmColor`, `HighBand_HasCoolColor`, `BurstAtAssignedBand_LightsUpSpot`, `HighSensitivity_BrighterThanLowSensitivity`) added. Total tests: 86/86.
 
 ---
 

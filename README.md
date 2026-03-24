@@ -44,9 +44,10 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 
 ### 3.6.0
 
-- **Sound to Light mode** — new audio-reactive lighting pipeline using WASAPI loopback capture (no microphone required). A 1024-sample Hann-windowed FFT maps three logarithmic frequency bands to LED zones each frame: bass (20–200 Hz) lights the bottom LEDs warm orange-red, mid frequencies (200–2000 Hz) drive the side LEDs with neutral white, and treble (2–20 kHz) illuminates the top LEDs with cool blue. Separate attack and decay smoothing keeps the response snappy on transients while fading naturally between beats
-- **Sensitivity and Smoothing controls** — new Sound to Light tab with two sliders. Sensitivity scales how strongly audio levels drive brightness; Smoothing controls the attack/decay time constants. Both persist across sessions
-- **Lighting mode selector** — General Setup now has a mode selector card (Screen Capture / Sound to Light). The active mode is live-switchable at any time; the LEDs revert to screen capture immediately when switching back
+- **Sound to Light mode** — new audio-reactive lighting pipeline using WASAPI loopback capture (no microphone required). A 1024-sample Hann-windowed FFT divides audio into 32 logarithmically-spaced bands from 20 Hz to 20 kHz. Each LED is randomly assigned a frequency band; band colours follow the visible spectrum — bass glows red and orange, mids shift through yellow and green, treble lights up cyan and blue, and the highest frequencies show violet. A strong bass hit reshuffles all LED assignments for a dynamic, ever-changing pattern
+- **Sensitivity and Smoothing controls** — new Sound to Light tab with sliders for Sensitivity (audio-to-brightness gain), Smoothing (attack/decay envelope), and per-channel RGB Gain (Red, Green, Blue; range 0–2) to tune colour balance for your specific LED strip. All settings persist across sessions
+- **Lighting mode selector** — General Setup now has a mode selector card (Screen Capture / Sound to Light). The active mode is also switchable from the system tray context menu — all available modes are listed with a check mark on the current one
+- **Diagnostics: Copy log button** — the Diagnostics tab now has a "Copy log" button that copies all visible log entries to the clipboard as plain text
 
 ### 3.5.0
 
