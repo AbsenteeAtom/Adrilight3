@@ -43,6 +43,9 @@ namespace adrilight
         private AlternateWhiteBalanceModeEnum _alternateWhiteBalanceMode = AlternateWhiteBalanceModeEnum.Off;
         private byte _soundToLightSensitivity = 50;
         private byte _soundToLightSmoothing = 50;
+        private float _soundToLightRedGain   = 0.6f;
+        private float _soundToLightGreenGain = 0.85f;
+        private float _soundToLightBlueGain  = 1.0f;
 
         public int ConfigFileVersion { get => _configFileVersion; set => SetProperty(ref _configFileVersion, value); }
         public bool Autostart { get => _autostart; set => SetProperty(ref _autostart, value); }
@@ -80,5 +83,8 @@ namespace adrilight
         public AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get => _alternateWhiteBalanceMode; set => SetProperty(ref _alternateWhiteBalanceMode, value); }
         public byte SoundToLightSensitivity { get => _soundToLightSensitivity; set => SetProperty(ref _soundToLightSensitivity, value); }
         public byte SoundToLightSmoothing { get => _soundToLightSmoothing; set => SetProperty(ref _soundToLightSmoothing, value); }
+        public float SoundToLightRedGain   { get => _soundToLightRedGain;   set => SetProperty(ref _soundToLightRedGain,   value); }
+        public float SoundToLightGreenGain { get => _soundToLightGreenGain; set => SetProperty(ref _soundToLightGreenGain, value); }
+        public float SoundToLightBlueGain  { get => _soundToLightBlueGain;  set => SetProperty(ref _soundToLightBlueGain,  value); }
     }
 }

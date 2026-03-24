@@ -27,11 +27,15 @@ namespace adrilight.Tests
     {
         // ── Helpers ──────────────────────────────────────────────────────────────
 
-        private static Mock<IUserSettings> MakeSettings(byte sensitivity = 50, byte smoothing = 1)
+        private static Mock<IUserSettings> MakeSettings(byte sensitivity = 50, byte smoothing = 1,
+            float redGain = 0.6f, float greenGain = 0.85f, float blueGain = 1.0f)
         {
             var m = new Mock<IUserSettings>();
             m.SetupGet(s => s.SoundToLightSensitivity).Returns(sensitivity);
             m.SetupGet(s => s.SoundToLightSmoothing).Returns(smoothing);
+            m.SetupGet(s => s.SoundToLightRedGain).Returns(redGain);
+            m.SetupGet(s => s.SoundToLightGreenGain).Returns(greenGain);
+            m.SetupGet(s => s.SoundToLightBlueGain).Returns(blueGain);
             return m;
         }
 
@@ -207,9 +211,9 @@ namespace adrilight.Tests
         }
 
         [TestMethod]
-        public void FrequencyToWavelength_10kHz_Returns400nm()
+        public void FrequencyToWavelength_20kHz_Returns400nm()
         {
-            Assert.AreEqual(400f, FrequencyToWavelength(10000f), 0.01f, "10 kHz should map to 400 nm (violet)");
+            Assert.AreEqual(400f, FrequencyToWavelength(20000f), 0.01f, "20 kHz should map to 400 nm (violet)");
         }
 
         [TestMethod]

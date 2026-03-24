@@ -216,7 +216,7 @@ namespace adrilight.Util
             float decay     = DecayAlpha(smoothing);
             float sensScale = sens / 50f;
             int   limit     = fftData.Length / 2;
-            const float reference = 0.02f;
+            const float reference = 0.01f;
 
             // Compute per-band energy: per-bin-average RMS, normalised by the single-bin reference.
             // Using per-bin average keeps sensitivity consistent regardless of band width.
@@ -244,9 +244,9 @@ namespace adrilight.Util
                     var (r, g, bColor) = colors[i];
                     float lv = smoothed[i];
                     spots[i].SetColor(
-                        (byte)(r      * lv * 255f),
-                        (byte)(g      * lv * 255f),
-                        (byte)(bColor * lv * 255f),
+                        (byte)Math.Clamp(r      * lv * _settings.SoundToLightRedGain   * 255f, 0f, 255f),
+                        (byte)Math.Clamp(g      * lv * _settings.SoundToLightGreenGain * 255f, 0f, 255f),
+                        (byte)Math.Clamp(bColor * lv * _settings.SoundToLightBlueGain  * 255f, 0f, 255f),
                         false);
                 }
                 _spotSet.IsDirty = true;
@@ -276,7 +276,7 @@ namespace adrilight.Util
                 {
                     BinLo = binLo,
                     BinHi = binHi,
-                    Color = WavelengthToRgb(FrequencyToWavelength(Math.Clamp(fCenter, 20f, 10000f)))
+                    Color = WavelengthToRgb(FrequencyToWavelength(Math.Clamp(fCenter, 20f, 20000f)))
                 };
             }
             return bands;
@@ -285,7 +285,7 @@ namespace adrilight.Util
         /// <summary>Low-frequency edge of band <paramref name="bandIndex"/> in Hz (log scale).</summary>
         internal static float BandLowFrequency(int bandIndex)
         {
-            const float fMin = 20f, fMax = 10000f;
+            const float fMin = 20f, fMax = 20000f;
             return fMin * MathF.Pow(fMax / fMin, (float)bandIndex / NBands);
         }
 
@@ -310,7 +310,7 @@ namespace adrilight.Util
         /// </summary>
         internal static float FrequencyToWavelength(float hz)
         {
-            const float fMin  = 20f,  fMax  = 10000f;
+            const float fMin  = 20f,  fMax  = 20000f;
             const float nmMax = 700f, nmMin = 400f;
             float t = MathF.Log(Math.Clamp(hz, fMin, fMax) / fMin) / MathF.Log(fMax / fMin);
             return nmMax - t * (nmMax - nmMin);

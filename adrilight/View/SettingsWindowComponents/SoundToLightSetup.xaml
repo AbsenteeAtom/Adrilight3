@@ -20,14 +20,10 @@
                 <TextBlock FontWeight="Bold">Sound to Light</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 8 0 0" TextAlignment="Justify">
                     Captures your system's audio output (WASAPI loopback — no microphone required) and drives the
-                    LEDs in real time. Three frequency bands are mapped to LED zones:
-                    <LineBreak />
-                    <LineBreak />
-                    <Bold>Bottom LEDs</Bold> respond to bass (20–200 Hz) with a warm orange-red colour.
-                    <LineBreak />
-                    <Bold>Side LEDs</Bold> respond to mid frequencies (200–2000 Hz) with neutral white.
-                    <LineBreak />
-                    <Bold>Top LEDs</Bold> respond to treble (2–20 kHz) with a cool blue.
+                    LEDs in real time. Each LED is randomly assigned a frequency band from 20 Hz to 20 kHz.
+                    Band colours follow the visible spectrum: bass frequencies glow red and orange, mids shift
+                    through yellow and green, treble lights up cyan and blue, and the highest bands show violet.
+                    A strong bass hit reshuffles all LED assignments for a dynamic, ever-changing pattern.
                     <LineBreak />
                     <LineBreak />
                     Switch to Sound to Light mode on the General Setup tab. The LEDs revert to Screen Capture when you switch back.
@@ -69,6 +65,54 @@
                     that follows every beat precisely. High values produce a silky, gradual fade that is easier
                     on the eyes for sustained listening. Default is 50.
                 </TextBlock>
+            </StackPanel>
+        </materialDesign:Card>
+
+        <materialDesign:Card Margin="4 4 4 4" Width="900">
+            <StackPanel Margin="16 12 16 16">
+                <TextBlock FontWeight="Bold">Colour Channel Gain</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 6 0 12" TextAlignment="Justify">
+                    Adjust the relative intensity of each colour channel. Values above 1.0 boost a channel;
+                    values below 1.0 attenuate it. Defaults are Red 0.60, Green 0.85, Blue 1.00 — tuned for
+                    a warm, slightly blue-shifted palette across most LED strips.
+                </TextBlock>
+
+                <!-- Red -->
+                <TextBlock>Red</TextBlock>
+                <DockPanel Margin="0 4 0 8">
+                    <TextBox DockPanel.Dock="Right"
+                             MinWidth="50" Margin="8 0 0 0" VerticalAlignment="Bottom"
+                             Text="{Binding Settings.SoundToLightRedGain, StringFormat=F2, UpdateSourceTrigger=PropertyChanged}" />
+                    <Slider Minimum="0" Maximum="2"
+                            TickPlacement="BottomRight" TickFrequency="0.25"
+                            IsSnapToTickEnabled="False"
+                            Value="{Binding Settings.SoundToLightRedGain}" />
+                </DockPanel>
+
+                <!-- Green -->
+                <TextBlock>Green</TextBlock>
+                <DockPanel Margin="0 4 0 8">
+                    <TextBox DockPanel.Dock="Right"
+                             MinWidth="50" Margin="8 0 0 0" VerticalAlignment="Bottom"
+                             Text="{Binding Settings.SoundToLightGreenGain, StringFormat=F2, UpdateSourceTrigger=PropertyChanged}" />
+                    <Slider Minimum="0" Maximum="2"
+                            TickPlacement="BottomRight" TickFrequency="0.25"
+                            IsSnapToTickEnabled="False"
+                            Value="{Binding Settings.SoundToLightGreenGain}" />
+                </DockPanel>
+
+                <!-- Blue -->
+                <TextBlock>Blue</TextBlock>
+                <DockPanel Margin="0 4 0 0">
+                    <TextBox DockPanel.Dock="Right"
+                             MinWidth="50" Margin="8 0 0 0" VerticalAlignment="Bottom"
+                             Text="{Binding Settings.SoundToLightBlueGain, StringFormat=F2, UpdateSourceTrigger=PropertyChanged}" />
+                    <Slider Minimum="0" Maximum="2"
+                            TickPlacement="BottomRight" TickFrequency="0.25"
+                            IsSnapToTickEnabled="False"
+                            Value="{Binding Settings.SoundToLightBlueGain}" />
+                </DockPanel>
+
             </StackPanel>
         </materialDesign:Card>
 

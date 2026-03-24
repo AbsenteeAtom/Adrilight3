@@ -328,6 +328,8 @@ namespace adrilight
 
             var contextMenu = new System.Windows.Forms.ContextMenuStrip();
             contextMenu.Items.Add(CreateSendingMenuItem());
+            contextMenu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+            AddModeMenuItems(contextMenu);
             contextMenu.Items.Add("Settings...", null, (s, e) => OpenSettingsWindow());
             contextMenu.Items.Add("Exit", null, (s, e) => Shutdown(0));
 
@@ -362,6 +364,37 @@ namespace adrilight
             };
 
             return menuItem;
+        }
+
+        private void AddModeMenuItems(System.Windows.Forms.ContextMenuStrip contextMenu)
+        {
+            var modes = new[]
+            {
+                (Mode: Util.LightingMode.ScreenCapture, Label: "Screen Capture"),
+                (Mode: Util.LightingMode.SoundToLight,  Label: "Sound to Light"),
+                (Mode: Util.LightingMode.GamerMode,     Label: "Gamer Mode"),
+            };
+
+            var items = new System.Windows.Forms.ToolStripMenuItem[modes.Length];
+            for (int i = 0; i < modes.Length; i++)
+            {
+                var mode  = modes[i].Mode;
+                var label = modes[i].Label;
+                var item  = new System.Windows.Forms.ToolStripMenuItem(label);
+                item.Checked = _modeManager.ActiveMode == mode;
+                item.Click  += (_, __) => _modeManager.SetMode(mode);
+                items[i] = item;
+                contextMenu.Items.Add(item);
+            }
+
+            contextMenu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+
+            _modeManager.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName != nameof(Util.IModeManager.ActiveMode)) return;
+                for (int i = 0; i < modes.Length; i++)
+                    items[i].Checked = _modeManager.ActiveMode == modes[i].Mode;
+            };
         }
 
         public static bool IsPrivateBuild { get; private set; }
