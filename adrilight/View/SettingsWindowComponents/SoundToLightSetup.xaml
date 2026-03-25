@@ -70,18 +70,36 @@
 
         <materialDesign:Card Margin="4 4 4 4" Width="440">
             <StackPanel Margin="16 12 16 16">
-                <TextBlock FontWeight="Bold"
-                           Text="{Binding Settings.SoundToLightMaxBpm, StringFormat='Max BPM: {0}'}"/>
+                <!-- Label + auto-detect toggle on same row -->
+                <DockPanel>
+                    <ToggleButton DockPanel.Dock="Right"
+                                  Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                  IsChecked="{Binding Settings.SoundToLightAutoBpm}"
+                                  ToolTip="When on, the detected music tempo sets the reshuffle rate automatically." />
+                    <TextBlock FontWeight="Bold" VerticalAlignment="Center"
+                               Text="{Binding BpmSliderLabel, Mode=OneWay}" />
+                </DockPanel>
                 <DockPanel Margin="0 8 0 0">
                     <Slider Minimum="30" Maximum="240"
                             TickPlacement="BottomRight" TickFrequency="5"
                             IsSnapToTickEnabled="True"
                             Value="{Binding Settings.SoundToLightMaxBpm}" />
                 </DockPanel>
+                <!-- BPM detection status row -->
+                <DockPanel Margin="0 8 0 0">
+                    <ProgressBar DockPanel.Dock="Right" Width="56" Height="6"
+                                 Minimum="0" Maximum="1"
+                                 Value="{Binding BpmDetector.BpmConfidence, Mode=OneWay}"
+                                 Margin="8 0 0 0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding BpmDetector.BpmStatusText, Mode=OneWay}"
+                               Foreground="{DynamicResource MaterialDesignBodyLight}"
+                               FontSize="12" VerticalAlignment="Center" />
+                </DockPanel>
                 <TextBlock TextWrapping="Wrap" Margin="0 8 0 0" TextAlignment="Justify">
-                    The maximum rate at which LED colour assignments reshuffle on a strong bass hit.
-                    Higher values produce more frequent changes for a fast, energetic effect; lower
-                    values give a slower, more deliberate pulse. Default is 120 BPM.
+                    Controls how frequently LED colour assignments can reshuffle on a strong bass hit.
+                    With Auto detect on, the detected music tempo is used automatically; this slider
+                    acts as a fallback when detection is unavailable or Auto detect is off. Range
+                    30–240 BPM in steps of 5; default is 120 BPM.
                 </TextBlock>
             </StackPanel>
         </materialDesign:Card>

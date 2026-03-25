@@ -33,7 +33,7 @@ namespace adrilight.ViewModel
 
         public SettingsViewModel(IUserSettings userSettings, IList<ISelectableViewPart> selectableViewParts,
             ISpotSet spotSet, IContext context, ISerialStream serialStream, DiagnosticsViewModel diagnostics,
-            Util.IModeManager modeManager)
+            Util.IModeManager modeManager, Util.IBpmDetector bpmDetector)
         {
             if (selectableViewParts == null) throw new ArgumentNullException(nameof(selectableViewParts));
 
@@ -43,6 +43,7 @@ namespace adrilight.ViewModel
             this.serialStream = serialStream ?? throw new ArgumentNullException(nameof(serialStream));
             Diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
             _modeManager = modeManager ?? throw new ArgumentNullException(nameof(modeManager));
+            BpmDetector = bpmDetector ?? throw new ArgumentNullException(nameof(bpmDetector));
             SelectableViewParts = selectableViewParts.OrderBy(p => p.Order).ToList();
 
             _modeManager.PropertyChanged += (s, e) =>
@@ -100,12 +101,22 @@ namespace adrilight.ViewModel
                         OnPropertyChanged(nameof(TransferCanBeStarted));
                         OnPropertyChanged(nameof(TransferCanNotBeStarted));
                         break;
+
+                    case nameof(Settings.SoundToLightAutoBpm):
+                    case nameof(Settings.SoundToLightMaxBpm):
+                        OnPropertyChanged(nameof(BpmSliderLabel));
+                        break;
                 }
             };
         }
 
         public string Title { get; } = $"adrilight {App.VersionNumber}";
         public DiagnosticsViewModel Diagnostics { get; }
+        public Util.IBpmDetector BpmDetector { get; }
+
+        public string BpmSliderLabel
+            => $"{(Settings.SoundToLightAutoBpm ? "Fallback" : "Max")} BPM: {Settings.SoundToLightMaxBpm}";
+
         public int LedCount => SpotSet.CountLeds(Settings.SpotsX, Settings.SpotsY);
 
         public bool TransferCanBeStarted => serialStream.IsValid();

@@ -28,12 +28,14 @@ namespace adrilight.Tests
         // ── Helpers ──────────────────────────────────────────────────────────────
 
         private static Mock<IUserSettings> MakeSettings(byte sensitivity = 50, byte smoothing = 1,
-            float redGain = 0.6f, float greenGain = 0.85f, float blueGain = 1.0f, int maxBpm = 120)
+            float redGain = 0.6f, float greenGain = 0.85f, float blueGain = 1.0f, int maxBpm = 120,
+            bool autoBpm = true)
         {
             var m = new Mock<IUserSettings>();
             m.SetupGet(s => s.SoundToLightSensitivity).Returns(sensitivity);
             m.SetupGet(s => s.SoundToLightSmoothing).Returns(smoothing);
             m.SetupGet(s => s.SoundToLightMaxBpm).Returns(maxBpm);
+            m.SetupGet(s => s.SoundToLightAutoBpm).Returns(autoBpm);
             m.SetupGet(s => s.SoundToLightRedGain).Returns(redGain);
             m.SetupGet(s => s.SoundToLightGreenGain).Returns(greenGain);
             m.SetupGet(s => s.SoundToLightBlueGain).Returns(blueGain);
@@ -439,6 +441,106 @@ namespace adrilight.Tests
             for (byte s = 1; s <= 100; s++)
                 Assert.IsTrue(DecayAlpha(s) < AttackAlpha(s),
                     $"Decay alpha should always be < attack alpha at smoothing={s}.");
+        }
+
+        // ── BPM detection pure helpers ─────────────────────────────────────────
+
+        [TestMethod]
+        public void ComputeOnsetStrength_AllIncrease_ReturnsTotalFlux()
+        {
+            var current  = new float[] { 0.5f, 0.3f, 0.8f };
+            var prev     = new float[] { 0.2f, 0.1f, 0.4f };
+            float expect = (0.5f - 0.2f) + (0.3f - 0.1f) + (0.8f - 0.4f);
+            Assert.AreEqual(expect, AudioCaptureReader.ComputeOnsetStrength(current, prev), 1e-5f);
+        }
+
+        [TestMethod]
+        public void ComputeOnsetStrength_AllDecrease_ReturnsZero()
+        {
+            var current = new float[] { 0.1f, 0.2f, 0.3f };
+            var prev    = new float[] { 0.5f, 0.6f, 0.7f };
+            Assert.AreEqual(0f, AudioCaptureReader.ComputeOnsetStrength(current, prev), 1e-5f);
+        }
+
+        [TestMethod]
+        public void ComputeOnsetStrength_MixedChanges_ReturnsOnlyPositiveFlux()
+        {
+            var current = new float[] { 0.5f, 0.1f };
+            var prev    = new float[] { 0.2f, 0.3f };
+            Assert.AreEqual(0.3f, AudioCaptureReader.ComputeOnsetStrength(current, prev), 1e-5f);
+        }
+
+        [TestMethod]
+        public void ComputeAutocorrelation_PeriodicSignal_PeaksAtPeriod()
+        {
+            // Search range [15,30] ensures only the fundamental period (lag=20) is in range,
+            // not the second harmonic (lag=40) which has equal autocorrelation for a pure sine.
+            int N = 128, period = 20;
+            var signal = new float[N];
+            for (int i = 0; i < N; i++)
+                signal[i] = MathF.Sin(2f * MathF.PI * i / period);
+
+            float[] autocorr = AudioCaptureReader.ComputeAutocorrelation(signal, 15, 30);
+            int peakIdx = 0;
+            for (int i = 1; i < autocorr.Length; i++)
+                if (autocorr[i] > autocorr[peakIdx]) peakIdx = i;
+            int peakLag = peakIdx + 15;
+
+            Assert.IsTrue(Math.Abs(peakLag - period) <= 1,
+                $"Periodic signal (period={period}) should peak at lag≈{period}, got lag={peakLag}");
+        }
+
+        [TestMethod]
+        public void ComputeAutocorrelation_FlatSignal_AllNearZero()
+        {
+            var signal   = new float[128];  // all zeros → mean-subtracted is all zeros
+            float[] autocorr = AudioCaptureReader.ComputeAutocorrelation(signal, 5, 40);
+            foreach (float v in autocorr)
+                Assert.AreEqual(0f, v, 1e-5f, "Zero signal should give zero autocorrelation");
+        }
+
+        [TestMethod]
+        public void ComputeConfidence_StrongPeak_ReturnsHighConfidence()
+        {
+            // Large spike at index 10 (lag = 10 + minLag=5 = 15) against a flat background
+            var autocorr = new float[30];
+            autocorr[10] = 10f;
+            float conf = AudioCaptureReader.ComputeConfidence(autocorr, 15, 5);
+            Assert.IsTrue(conf > 2f, $"Strong spike should produce confidence > 2, got {conf:F2}");
+        }
+
+        [TestMethod]
+        public void ComputeConfidence_FlatAutocorr_ReturnsZero()
+        {
+            var autocorr = new float[30];
+            for (int i = 0; i < 30; i++) autocorr[i] = 0.5f;
+            float conf = AudioCaptureReader.ComputeConfidence(autocorr, 15, 5);
+            Assert.AreEqual(0f, conf, 1e-5f, "Uniform autocorrelation should give confidence=0");
+        }
+
+        [TestMethod]
+        public void ComputeStability_IdenticalEstimates_ReturnsOne()
+        {
+            var estimates = new float[] { 120f, 120f, 120f, 120f };
+            Assert.AreEqual(1f, AudioCaptureReader.ComputeStability(estimates, 4), 1e-5f);
+        }
+
+        [TestMethod]
+        public void ComputeStability_WidelyVaryingEstimates_ReturnsZero()
+        {
+            var estimates = new float[] { 60f, 120f, 180f, 240f };
+            Assert.AreEqual(0f, AudioCaptureReader.ComputeStability(estimates, 4));
+        }
+
+        [TestMethod]
+        public void LagToBpm_RoundTrip_IsConsistent()
+        {
+            float fps = 44100f / AudioCaptureReader.FftLength;
+            int lag = AudioCaptureReader.BpmToLag(120f, fps);
+            float bpm = AudioCaptureReader.LagToBpm(lag, fps);
+            // Due to rounding, allow ±5 BPM tolerance
+            Assert.IsTrue(Math.Abs(bpm - 120f) < 5f,
+                $"LagToBpm(BpmToLag(120)) should round-trip to ~120 BPM, got {bpm:F1}");
         }
     }
 }

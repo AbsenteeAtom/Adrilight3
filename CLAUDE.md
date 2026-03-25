@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.6.3 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.6.4 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -40,7 +40,7 @@ adrilight.Tests/
   AudioCaptureReaderTests.cs    — ModeId, Start/Stop wiring, zero-audio, burst at assigned band, sensitivity, band model helpers (BuildBands, BandBinLo, BandCenterFrequency), wavelength/colour pure helpers (20 tests)
 ```
 
-Total tests: **86/86 passing**
+Total tests: **96/96 passing**
 
 ### Running tests
 ```
@@ -62,7 +62,7 @@ The test suite covers all logic that does not require a live GPU or display outp
 | `UserSettingsManagerTests.cs` | Settings save/load/migrate, whitebalance clamping |
 | `DiagnosticsViewModelTests.cs` | `DiagnosticsViewModel` ring buffer, status ratchet, filtering |
 | `ModeManagerTests.cs` | `ModeManager` inhibitor model, screen-saver-while-locked bug scenario, mode switching, pipeline Start/Stop |
-| `AudioCaptureReaderTests.cs` | `AudioCaptureReader` Start/Stop wiring, zero-audio, burst at assigned band, sensitivity scaling, band model helpers (`BuildBands`, `BandBinLo`, `BandCenterFrequency`), pure helpers (`WavelengthToRgb`, `FrequencyToWavelength`, `AttackAlpha`, `DecayAlpha`), beat detection |
+| `AudioCaptureReaderTests.cs` | `AudioCaptureReader` Start/Stop wiring, zero-audio, burst at assigned band, sensitivity scaling, band model helpers (`BuildBands`, `BandBinLo`, `BandCenterFrequency`), pure helpers (`WavelengthToRgb`, `FrequencyToWavelength`, `AttackAlpha`, `DecayAlpha`), beat detection, BPM detection helpers (`ComputeOnsetStrength`, `ComputeAutocorrelation`, `ComputeConfidence`, `ComputeStability`, `LagToBpm`/`BpmToLag`) |
 | `DependencyInjectionTests.cs` | Ninject container wiring (design-time and runtime) |
 
 `DetectBlackBars` and `GetSamplingRectangle` are declared `internal static` on `DesktopDuplicatorReader`. Tests call them directly, supplying a `BitmapData` obtained by locking a `System.Drawing.Bitmap` constructed in-process — no GPU involved.
@@ -426,6 +426,23 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 7. **Spurious 'no pipeline' warning suppressed:** `ModeManager.SetMode()` no longer warns when `_activeMode == ScreenCapture` — `DesktopDuplicatorReader` manages itself via `PropertyChanged` and intentionally has no `ILightingMode` entry.
 8. **Diagnostics Copy log button:** `CopyToClipboardCommand` added to `DiagnosticsViewModel`; copies all `FilteredEntries` (oldest-first, full timestamp/level/logger/message) to clipboard. "Copy log" button added to filter toolbar in `Diagnostics.xaml`.
 9. **AudioCaptureReaderTests updated:** `MakeSettings` mock sets up gain properties; `FrequencyToWavelength_20kHz_Returns400nm` replaces 10 kHz variant; old band-model tests (`BuildBands_Returns32Bands`, `BandBinLo_NonDecreasingAcrossBands`, `LowBand_HasWarmColor`, `HighBand_HasCoolColor`, `BurstAtAssignedBand_LightsUpSpot`, `HighSensitivity_BrighterThanLowSensitivity`) added. Total tests: 86/86.
+
+### 2026-03-25 — Auto BPM detection (v3.6.4)
+1. **`IBpmDetector` interface** added (`Util/IBpmDetector.cs`, `public`) — `DetectedBpm` (int), `BpmConfidence` (float 0..1), `BpmStatusText` (string), extends `INotifyPropertyChanged`.
+2. **`BpmDetectorFake`** added (`Fakes/BpmDetectorFake.cs`) for design-time DI.
+3. **`SoundToLightAutoBpm` setting** (bool, default `true`) added to `IUserSettings`, `UserSettings`, `UserSettingsFake`. Persisted as JSON. Controls whether auto-detected BPM is used for the reshuffle rate limit.
+4. **`AudioCaptureReader`** now inherits from `ObservableObject` and implements `IBpmDetector`:
+   - `ComputeBandRms` extracted from `ApplyToSpots` and called once per frame; result shared by both onset computation and colour pipeline.
+   - **Onset strength buffer** (256-frame circular buffer, `OnsetBufferSize = 256`): each frame computes spectral flux (sum of positive band-energy increases vs. previous frame) via `ComputeOnsetStrength` and appends to the buffer.
+   - **`RunBpmDetection(sr)`** fires every `AnalysisInterval = 43` frames (~1 s) after `WarmupFrames = 86` (~2 s). Extracts linear signal from circular buffer, calls `ComputeAutocorrelation` (mean-subtracted normalised, lags for 30–240 BPM), finds peak lag, computes `ComputeConfidence` (σ-score of peak prominence) and `ComputeStability` (coefficient-of-variation of last 4 estimates). Combined score drives `BpmStatusText` / `DetectedBpm` / `BpmConfidence` properties.
+   - **`GetEffectiveBpm()`** returns detected BPM (capped 30–240) when `SoundToLightAutoBpm && BpmConfidence >= 0.5`, else falls back to `SoundToLightMaxBpm`. Hard 240 BPM ceiling always enforced.
+   - Six new `internal static` pure helpers: `ComputeOnsetStrength`, `ComputeAutocorrelation`, `ComputeConfidence`, `ComputeStability`, `LagToBpm`, `BpmToLag`.
+5. **`SettingsViewModel`** gains `IBpmDetector BpmDetector { get; }` (injected) and `string BpmSliderLabel` computed from `SoundToLightAutoBpm` ("Fallback BPM: X" or "Max BPM: X"); `PropertyChanged` handler fires `BpmSliderLabel` updates on both setting changes.
+6. **`App.xaml.cs`** DI: runtime branch creates `AudioCaptureReader` explicitly and binds it as both `ILightingMode` and `IBpmDetector` (same singleton); design-time branch binds `BpmDetectorFake`. Old `if (!isInDesignMode)` ILightingMode binding block removed.
+7. **`SoundToLightSetup.xaml`** Max BPM card updated: auto-detect toggle (`SoundToLightAutoBpm`), dynamic label (`BpmSliderLabel`), existing slider, status row with `BpmStatusText` + `ProgressBar` (confidence 0–1), updated description.
+8. **`IBpmDetector` accessibility** set to `public` (required because `SettingsViewModel` is public).
+9. **Tests**: `MakeSettings` gains `autoBpm` parameter; 10 new tests — `ComputeOnsetStrength` (3 cases), `ComputeAutocorrelation` (2 cases, periodic peak test uses search range [15,30] to avoid second-harmonic ambiguity), `ComputeConfidence` (2 cases), `ComputeStability` (2 cases), `LagToBpm`/`BpmToLag` round-trip. Total: 96/96.
+10. Version bumped to 3.6.4.
 
 ### 2026-03-25 — Max BPM slider + settings diagnostics + beat/channel fixes (v3.6.3)
 1. **Max BPM slider:** `SoundToLightMaxBpm` int property (default 120) added to `IUserSettings`, `UserSettings`, `UserSettingsFake`. New 440-wide card on `SoundToLightSetup.xaml` between Smoothing and Colour Channel Gain — snap-to-tick slider (30–240, steps of 5), dynamic label `"Max BPM: {value}"`. `AudioCaptureReader` replaces hardcoded `ReshuffleRateLimitMs = 1000` with `60000 / Math.Max(1, _settings.SoundToLightMaxBpm)` (computed each beat check). Default 120 BPM = 500 ms interval.

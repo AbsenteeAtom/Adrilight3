@@ -4,7 +4,7 @@
 
 > An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
 
-**adrilight 3.6.3 — AbsenteeAtom Edition**
+**adrilight 3.6.4 — AbsenteeAtom Edition**
 Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
 The original author retired the project; this fork modernises it for .NET 8 and adds new features.
 
@@ -41,6 +41,10 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 ---
 
 ## What's new
+
+### 3.6.4
+
+- **Sound to Light: Auto BPM detection** — new toggle on the Sound to Light settings tab. When on, adrilight analyses the spectral flux of the audio in real time using a windowed autocorrelation algorithm to estimate the music's tempo, and uses that tempo to control the LED reshuffle rate automatically. A confidence score and live status ("Detected: 124 BPM — Good lock") are shown below the slider. When confidence is low or detection is disabled, the Fallback BPM slider applies (formerly "Max BPM"). A hard ceiling of 240 BPM is always enforced regardless of detected tempo. Default: Auto detect on, Fallback BPM 120
 
 ### 3.6.3
 

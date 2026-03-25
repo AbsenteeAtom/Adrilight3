@@ -144,6 +144,7 @@ namespace adrilight
                 kernel.Bind<ISerialStream>().To<Fakes.SerialStreamFake>().InSingletonScope();
                 kernel.Bind<IDesktopDuplicatorReader>().To<Fakes.DesktopDuplicatorReaderFake>().InSingletonScope();
                 kernel.Bind<Util.IModeManager>().To<Fakes.ModeManagerFake>().InSingletonScope();
+                kernel.Bind<Util.IBpmDetector>().To<Fakes.BpmDetectorFake>().InSingletonScope();
             }
             else
             {
@@ -156,6 +157,14 @@ namespace adrilight
                 kernel.Bind<IDesktopDuplicatorReader>().To<DesktopDuplicatorReader>().InSingletonScope();
                 kernel.Bind<Util.IModeManager>().To<Util.ModeManager>().InSingletonScope();
                 kernel.Bind<Util.IAudioCaptureProvider>().To<Util.WasapiAudioCaptureProvider>().InSingletonScope();
+
+                // Bind AudioCaptureReader as both ILightingMode and IBpmDetector — same singleton instance
+                var audioReader = new Util.AudioCaptureReader(
+                    kernel.Get<IUserSettings>(),
+                    kernel.Get<ISpotSet>(),
+                    kernel.Get<Util.IAudioCaptureProvider>());
+                kernel.Bind<Util.ILightingMode>().ToConstant(audioReader);
+                kernel.Bind<Util.IBpmDetector>().ToConstant(audioReader);
             }
 
             kernel.Bind<ViewModel.DiagnosticsViewModel>()
@@ -166,11 +175,6 @@ namespace adrilight
                 .SelectAllClasses()
                 .InheritedFrom<ISelectableViewPart>()
                 .BindAllInterfaces());
-            if (!isInDesignMode)
-            {
-                // Explicit binding — convention scanning skips internal classes
-                kernel.Bind<Util.ILightingMode>().To<Util.AudioCaptureReader>().InSingletonScope();
-            }
 
             kernel.Bind<Util.INightLightRegistryReader>().To<Util.RegistryNightLightReader>().InSingletonScope();
             kernel.Bind<NightLightDetection>().ToSelf().InSingletonScope();

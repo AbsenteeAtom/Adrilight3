@@ -63,5 +63,6 @@ namespace adrilight
         float SoundToLightRedGain { get; set; }
         float SoundToLightGreenGain { get; set; }
         float SoundToLightBlueGain { get; set; }
+        bool  SoundToLightAutoBpm  { get; set; }
     }
 }

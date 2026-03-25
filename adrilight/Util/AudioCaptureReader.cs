@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using System;
 using System.Linq;
 using NLog;
@@ -9,7 +10,7 @@ namespace adrilight.Util
     /// FFT each frame, and maps visible-spectrum colours to the LEDs via a logarithmically-spaced
     /// frequency band model:
     ///
-    ///   • The 20 Hz – 10 kHz range is divided into <see cref="NBands"/> logarithmically-spaced
+    ///   • The 20 Hz – 20 kHz range is divided into <see cref="NBands"/> logarithmically-spaced
     ///     bands.  Each band's colour is derived from its centre wavelength (700 nm red → 400 nm
     ///     violet) using the Bruton visible-spectrum approximation.
     ///
@@ -18,20 +19,28 @@ namespace adrilight.Util
     ///     lights up.
     ///
     ///   • Band energy = per-bin-average RMS of the FFT magnitudes within the band's bin range,
-    ///     normalised to the single-bin reference (0.25) so Sensitivity behaves the same as
-    ///     before regardless of band width.
+    ///     normalised to the single-bin reference (0.04) so Sensitivity behaves the same
+    ///     regardless of band width.
     ///
-    ///   • On a strong bass hit the LED→band assignments are randomly reshuffled (≤ once/second).
+    ///   • On a strong bass hit the LED→band assignments are randomly reshuffled.  The rate limit
+    ///     derives from <see cref="IUserSettings.SoundToLightMaxBpm"/> (or the auto-detected BPM
+    ///     when <see cref="IUserSettings.SoundToLightAutoBpm"/> is on and confidence is high).
     ///
     /// The audio hardware boundary is isolated behind <see cref="IAudioCaptureProvider"/>;
     /// AudioCaptureReader is fully testable without a real audio device.
     /// </summary>
-    internal sealed class AudioCaptureReader : ILightingMode
+    internal sealed class AudioCaptureReader : ObservableObject, ILightingMode, IBpmDetector
     {
         private static readonly ILogger _log = LogManager.GetCurrentClassLogger();
 
         internal const int FftLength = 1024; // must be a power of 2
-        internal const int NBands    = 32;   // logarithmically-spaced bands, 20 Hz – 10 kHz
+        internal const int NBands    = 32;   // logarithmically-spaced bands, 20 Hz – 20 kHz
+
+        // ── BPM detection constants ───────────────────────────────────────────────
+        internal const int   OnsetBufferSize    = 256;   // ~6 s at 43 fps; circular buffer
+        internal const int   AnalysisInterval   = 43;    // run autocorrelation every ~1 second
+        internal const int   WarmupFrames       = 86;    // ~2 s before first detection attempt
+        internal const float ConfidenceThreshold = 0.50f;// combined score needed for a lock
 
         // Precomputed Hann window: w[i] = 0.5 * (1 - cos(2π·i / (N-1)))
         private static readonly float[] HannWindow = Enumerable.Range(0, FftLength)
@@ -69,7 +78,19 @@ namespace adrilight.Util
         // Beat detection state
         private long  _lastReshuffleMs;
 
-        // Reshuffle rate limit is derived from SoundToLightMaxBpm at call time: 60 000 ms / BPM
+        // ── BPM detection state ───────────────────────────────────────────────────
+        private readonly float[] _onsetBuffer = new float[OnsetBufferSize];
+        private readonly float[] _prevBandRaw = new float[NBands];  // previous band RMS for flux
+        private int   _onsetWritePos;
+        private int   _onsetFrameCount;   // frames stored so far, capped at OnsetBufferSize
+        private int   _fftFrameCount;     // total FFT frames since Start()
+        private readonly float[] _recentBpmEst = new float[4];  // last 4 estimates for stability
+        private int   _recentBpmCount;
+
+        // IBpmDetector backing fields
+        private int    _detectedBpm;
+        private float  _bpmConfidence;
+        private string _bpmStatusText = "—";
 
         private volatile bool _isRunning;
 
@@ -79,6 +100,11 @@ namespace adrilight.Util
 
         public LightingMode ModeId    => LightingMode.SoundToLight;
         public bool         IsRunning => _isRunning;
+
+        // ── IBpmDetector properties ──────────────────────────────────────────────
+        public int    DetectedBpm   { get => _detectedBpm;   private set => SetProperty(ref _detectedBpm,   value); }
+        public float  BpmConfidence { get => _bpmConfidence; private set => SetProperty(ref _bpmConfidence, value); }
+        public string BpmStatusText { get => _bpmStatusText; private set => SetProperty(ref _bpmStatusText, value); }
 
         public AudioCaptureReader(IUserSettings settings, ISpotSet spotSet, IAudioCaptureProvider capture)
         {
@@ -92,6 +118,18 @@ namespace adrilight.Util
             if (_isRunning) return;
             _bufferPos       = 0;
             _lastReshuffleMs = 0;
+
+            // Reset BPM detection state
+            _onsetWritePos   = 0;
+            _onsetFrameCount = 0;
+            _fftFrameCount   = 0;
+            _recentBpmCount  = 0;
+            Array.Clear(_onsetBuffer, 0, OnsetBufferSize);
+            Array.Clear(_prevBandRaw, 0, NBands);
+            DetectedBpm   = 0;
+            BpmConfidence = 0f;
+            BpmStatusText = "Warming up\u2026";
+
             _isRunning = true;
             _capture.Start(OnAudioData);   // sets SampleRate / Channels
             ShuffleSpotAssignments();      // uses SampleRate
@@ -103,6 +141,8 @@ namespace adrilight.Util
             if (!_isRunning) return;
             _isRunning = false;
             _capture.Stop();
+            BpmStatusText = "\u2014";
+            BpmConfidence = 0f;
             _log.Info("AudioCaptureReader stopped.");
         }
 
@@ -171,8 +211,26 @@ namespace adrilight.Util
 
             NAudio.Dsp.FastFourierTransform.FFT(true, (int)Math.Log2(FftLength), fftData);
 
-            // ── Beat detection — total bass energy 20–200 Hz ────────────────────
-            int sr     = _capture.SampleRate > 0 ? _capture.SampleRate : 48000;
+            int sr    = _capture.SampleRate > 0 ? _capture.SampleRate : 48000;
+            var bands = _currentBands;
+            if (bands == null) return;
+
+            // ── Per-band RMS — shared by colour application and onset strength ───
+            float[] bandRms = ComputeBandRms(fftData, bands);
+
+            // ── Onset strength for BPM detection ─────────────────────────────────
+            float onset = ComputeOnsetStrength(bandRms, _prevBandRaw);
+            Array.Copy(bandRms, _prevBandRaw, NBands);
+
+            _onsetBuffer[_onsetWritePos] = onset;
+            _onsetWritePos = (_onsetWritePos + 1) % OnsetBufferSize;
+            if (_onsetFrameCount < OnsetBufferSize) _onsetFrameCount++;
+            _fftFrameCount++;
+
+            if (_fftFrameCount % AnalysisInterval == 0 && _onsetFrameCount >= WarmupFrames)
+                RunBpmDetection(sr);
+
+            // ── Beat detection — total bass energy 20–200 Hz ─────────────────────
             int bassHi = Math.Max(1, FrequencyToBin(200f, sr));
 
             float bassEnergy = 0f;
@@ -181,14 +239,11 @@ namespace adrilight.Util
             float rawBass = MathF.Sqrt(bassEnergy);
 
             // Simple fixed threshold scaled by sensitivity — reliable with any music style.
-            // Dynamic comparison (rawBass vs smoothed average) was previously used but failed
-            // because the smoother caught up to rawBass within ~300 ms, after which the
-            // threshold was always above rawBass and reshuffles never fired.
             float sensScale  = _settings.SoundToLightSensitivity / 50f;
             float beatThresh = Math.Max(0.005f / sensScale, 0.0005f);
             bool  isBeat     = rawBass > beatThresh;
 
-            int  rateLimitMs = 60000 / Math.Max(1, _settings.SoundToLightMaxBpm);
+            int  rateLimitMs = 60000 / Math.Max(1, GetEffectiveBpm());
             long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             if (isBeat && (nowMs - _lastReshuffleMs) >= rateLimitMs)
             {
@@ -197,10 +252,42 @@ namespace adrilight.Util
                 _log.Debug("Beat detected — reshuffled LED assignments.");
             }
 
-            ApplyToSpots(fftData);
+            ApplyToSpots(bandRms);
         }
 
-        private void ApplyToSpots(NAudio.Dsp.Complex[] fftData)
+        /// <summary>
+        /// Returns the effective reshuffle-rate BPM: the auto-detected tempo when confidence
+        /// is sufficient and auto-detect is enabled, otherwise the manual fallback setting.
+        /// A hard ceiling of 240 BPM is always applied.
+        /// </summary>
+        private int GetEffectiveBpm()
+        {
+            if (_settings.SoundToLightAutoBpm && BpmConfidence >= ConfidenceThreshold && DetectedBpm > 0)
+                return Math.Clamp(DetectedBpm, 30, 240);
+            return _settings.SoundToLightMaxBpm;
+        }
+
+        // ── Per-band RMS computation ─────────────────────────────────────────────
+
+        private static float[] ComputeBandRms(NAudio.Dsp.Complex[] fftData, FreqBand[] bands)
+        {
+            int limit  = fftData.Length / 2;
+            var rms    = new float[NBands];
+            for (int b = 0; b < NBands; b++)
+            {
+                float energy   = 0f;
+                int   binCount = 0;
+                for (int bin = bands[b].BinLo; bin < bands[b].BinHi && bin < limit; bin++)
+                {
+                    energy += fftData[bin].X * fftData[bin].X + fftData[bin].Y * fftData[bin].Y;
+                    binCount++;
+                }
+                rms[b] = binCount > 0 ? MathF.Sqrt(energy / binCount) : 0f;
+            }
+            return rms;
+        }
+
+        private void ApplyToSpots(float[] bandRms)
         {
             var spots    = _spotSet.Spots;
             var bands    = _currentBands;
@@ -216,25 +303,13 @@ namespace adrilight.Util
             float attack    = AttackAlpha(smoothing);
             float decay     = DecayAlpha(smoothing);
             float sensScale = sens / 50f;
-            int   limit     = fftData.Length / 2;
             // reference calibrated for a 2-channel mono mix (front-L + front-R only).
             const float reference = 0.04f;
 
-            // Compute per-band energy: per-bin-average RMS, normalised by the single-bin reference.
-            // Using per-bin average keeps sensitivity consistent regardless of band width.
+            // Apply sensitivity scaling to the pre-computed RMS values
             var bandLevels = new float[NBands];
             for (int b = 0; b < NBands; b++)
-            {
-                float energy   = 0f;
-                int   binCount = 0;
-                for (int bin = bands[b].BinLo; bin < bands[b].BinHi && bin < limit; bin++)
-                {
-                    energy += fftData[bin].X * fftData[bin].X + fftData[bin].Y * fftData[bin].Y;
-                    binCount++;
-                }
-                float rms     = binCount > 0 ? MathF.Sqrt(energy / binCount) : 0f;
-                bandLevels[b] = Math.Clamp(rms / reference * sensScale, 0f, 1f);
-            }
+                bandLevels[b] = Math.Clamp(bandRms[b] / reference * sensScale, 0f, 1f);
 
             lock (_spotSet.Lock)
             {
@@ -255,7 +330,166 @@ namespace adrilight.Util
             }
         }
 
+        // ── BPM detection ────────────────────────────────────────────────────────
+
+        private void RunBpmDetection(int sr)
+        {
+            float fps    = sr > 0 ? sr / (float)FftLength : 44100f / FftLength;
+            int   minLag = Math.Max(1, BpmToLag(240f, fps));
+            int   maxLag = BpmToLag(30f, fps);
+
+            if (maxLag >= OnsetBufferSize) maxLag = OnsetBufferSize - 1;
+            if (minLag >= maxLag) return;
+
+            // Extract chronological signal from circular buffer
+            int bufLen   = Math.Min(_onsetFrameCount, OnsetBufferSize);
+            int startPos = _onsetFrameCount >= OnsetBufferSize ? _onsetWritePos : 0;
+            var signal   = new float[bufLen];
+            for (int i = 0; i < bufLen; i++)
+                signal[i] = _onsetBuffer[(startPos + i) % OnsetBufferSize];
+
+            if (maxLag >= bufLen) maxLag = bufLen - 1;
+            if (minLag >= maxLag) return;
+
+            var autocorr = ComputeAutocorrelation(signal, minLag, maxLag);
+
+            // Find peak lag
+            int peakIdx = 0;
+            for (int i = 1; i < autocorr.Length; i++)
+                if (autocorr[i] > autocorr[peakIdx]) peakIdx = i;
+            int peakLag = peakIdx + minLag;
+
+            float rawBpm     = LagToBpm(peakLag, fps);
+            float sigmaConf  = ComputeConfidence(autocorr, peakLag, minLag);
+            float normConf   = Math.Clamp(sigmaConf / 5f, 0f, 1f);
+
+            // Update stability history
+            _recentBpmEst[_recentBpmCount % _recentBpmEst.Length] = rawBpm;
+            if (_recentBpmCount < _recentBpmEst.Length) _recentBpmCount++;
+
+            float stability = ComputeStability(_recentBpmEst, _recentBpmCount);
+            float combined  = (normConf + stability) * 0.5f;
+
+            int detectedBpm = (int)Math.Clamp(MathF.Round(rawBpm), 30f, 240f);
+
+            BpmConfidence = combined;
+
+            if (_onsetFrameCount < OnsetBufferSize)
+            {
+                BpmStatusText = "Warming up\u2026";
+            }
+            else if (combined >= ConfidenceThreshold)
+            {
+                DetectedBpm   = detectedBpm;
+                BpmStatusText = combined >= 0.75f
+                    ? $"Detected: {detectedBpm} BPM \u2014 Good lock"
+                    : $"Detected: {detectedBpm} BPM \u2014 Weak signal";
+            }
+            else
+            {
+                BpmStatusText = "Detecting\u2026";
+            }
+        }
+
         // ── Pure helper functions (internal static for testability) ──────────────
+
+        /// <summary>
+        /// Spectral flux onset strength: sum of positive band-energy increases across all bands.
+        /// Returns a non-negative float; larger values indicate more sudden spectral change.
+        /// </summary>
+        internal static float ComputeOnsetStrength(float[] currentBands, float[] prevBands)
+        {
+            float flux = 0f;
+            int   len  = Math.Min(currentBands.Length, prevBands.Length);
+            for (int i = 0; i < len; i++)
+                flux += Math.Max(0f, currentBands[i] - prevBands[i]);
+            return flux;
+        }
+
+        /// <summary>
+        /// Mean-subtracted normalised autocorrelation of <paramref name="signal"/> for lags
+        /// in [<paramref name="minLag"/>, <paramref name="maxLag"/>].
+        /// Returns a float[] of length (maxLag - minLag + 1), indexed by (lag - minLag).
+        /// </summary>
+        internal static float[] ComputeAutocorrelation(float[] signal, int minLag, int maxLag)
+        {
+            int   n      = signal.Length;
+            float mean   = 0f;
+            for (int i = 0; i < n; i++) mean += signal[i];
+            mean /= n;
+
+            int     count  = maxLag - minLag + 1;
+            float[] result = new float[count];
+            for (int lagIdx = 0; lagIdx < count; lagIdx++)
+            {
+                int   lag = lagIdx + minLag;
+                float sum = 0f;
+                int   terms = n - lag;
+                if (terms <= 0) continue;
+                for (int t = 0; t < terms; t++)
+                    sum += (signal[t] - mean) * (signal[t + lag] - mean);
+                result[lagIdx] = sum / terms;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Peak prominence score (σ) for the autocorrelation array at <paramref name="peakLag"/>.
+        /// Returns (peakValue − mean) / stdDev, or 0 when stdDev is negligible.
+        /// <paramref name="autocorr"/> is indexed by (lag − minLag).
+        /// </summary>
+        internal static float ComputeConfidence(float[] autocorr, int peakLag, int minLag)
+        {
+            if (autocorr.Length == 0) return 0f;
+
+            float mean = 0f;
+            for (int i = 0; i < autocorr.Length; i++) mean += autocorr[i];
+            mean /= autocorr.Length;
+
+            float variance = 0f;
+            for (int i = 0; i < autocorr.Length; i++)
+            {
+                float d = autocorr[i] - mean;
+                variance += d * d;
+            }
+            float std = MathF.Sqrt(variance / autocorr.Length);
+            if (std < 1e-10f) return 0f;
+
+            float peakValue = autocorr[peakLag - minLag];
+            return Math.Max(0f, (peakValue - mean) / std);
+        }
+
+        /// <summary>
+        /// Stability score 0..1 for the last <paramref name="count"/> BPM estimates.
+        /// Returns 1 when all estimates are identical; 0 when the coefficient of variation
+        /// exceeds 25%.
+        /// </summary>
+        internal static float ComputeStability(float[] estimates, int count)
+        {
+            if (count < 2) return 0f;
+
+            float mean = 0f;
+            for (int i = 0; i < count; i++) mean += estimates[i];
+            mean /= count;
+            if (mean < 1f) return 0f;
+
+            float sumSq = 0f;
+            for (int i = 0; i < count; i++)
+            {
+                float d = estimates[i] - mean;
+                sumSq += d * d;
+            }
+            float cv = MathF.Sqrt(sumSq / count) / mean;   // coefficient of variation
+            return Math.Max(0f, 1f - cv / 0.25f);
+        }
+
+        /// <summary>Converts an autocorrelation lag (in FFT frames) to BPM.</summary>
+        internal static float LagToBpm(int lag, float framesPerSecond)
+            => lag > 0 ? framesPerSecond * 60f / lag : 0f;
+
+        /// <summary>Converts a BPM value to the nearest autocorrelation lag (in FFT frames).</summary>
+        internal static int BpmToLag(float bpm, float framesPerSecond)
+            => bpm > 0f ? (int)MathF.Round(framesPerSecond * 60f / bpm) : 0;
 
         /// <summary>
         /// Builds the <see cref="NBands"/> logarithmically-spaced frequency bands for the given
@@ -308,7 +542,7 @@ namespace adrilight.Util
 
         /// <summary>
         /// Maps a frequency in Hz to a visible-light wavelength in nm using a logarithmic scale.
-        /// 20 Hz → 700 nm (red), 10 000 Hz → 400 nm (violet).
+        /// 20 Hz → 700 nm (red), 20 000 Hz → 400 nm (violet).
         /// </summary>
         internal static float FrequencyToWavelength(float hz)
         {
@@ -321,12 +555,6 @@ namespace adrilight.Util
         /// <summary>
         /// Converts a visible-light wavelength in nm (400–700) to linear sRGB (0–1 floats)
         /// using the Bruton visible-spectrum approximation.
-        ///   400–440 nm  violet → blue  (r ↓, b=1)
-        ///   440–490 nm  blue → cyan   (g ↑, b=1)
-        ///   490–510 nm  cyan → green  (b ↓, g=1)
-        ///   510–580 nm  green → yellow(r ↑, g=1)
-        ///   580–645 nm  yellow → red  (g ↓, r=1)
-        ///   645–700 nm  red            (r=1)
         /// </summary>
         internal static (float r, float g, float b) WavelengthToRgb(float nm)
         {
