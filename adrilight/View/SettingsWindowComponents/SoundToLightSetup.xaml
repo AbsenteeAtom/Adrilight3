@@ -68,6 +68,24 @@
             </StackPanel>
         </materialDesign:Card>
 
+        <materialDesign:Card Margin="4 4 4 4" Width="440">
+            <StackPanel Margin="16 12 16 16">
+                <TextBlock FontWeight="Bold"
+                           Text="{Binding Settings.SoundToLightMaxBpm, StringFormat='Max BPM: {0}'}"/>
+                <DockPanel Margin="0 8 0 0">
+                    <Slider Minimum="30" Maximum="240"
+                            TickPlacement="BottomRight" TickFrequency="5"
+                            IsSnapToTickEnabled="True"
+                            Value="{Binding Settings.SoundToLightMaxBpm}" />
+                </DockPanel>
+                <TextBlock TextWrapping="Wrap" Margin="0 8 0 0" TextAlignment="Justify">
+                    The maximum rate at which LED colour assignments reshuffle on a strong bass hit.
+                    Higher values produce more frequent changes for a fast, energetic effect; lower
+                    values give a slower, more deliberate pulse. Default is 120 BPM.
+                </TextBlock>
+            </StackPanel>
+        </materialDesign:Card>
+
         <materialDesign:Card Margin="4 4 4 4" Width="900">
             <StackPanel Margin="16 12 16 16">
                 <TextBlock FontWeight="Bold">Colour Channel Gain</TextBlock>

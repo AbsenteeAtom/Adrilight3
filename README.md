@@ -4,7 +4,7 @@
 
 > An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
 
-**adrilight 3.6.2 — AbsenteeAtom Edition**
+**adrilight 3.6.3 — AbsenteeAtom Edition**
 Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
 The original author retired the project; this fork modernises it for .NET 8 and adds new features.
 
@@ -41,6 +41,10 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 ---
 
 ## What's new
+
+### 3.6.3
+
+- **Sound to Light: Max BPM slider** — new slider on the Sound to Light settings tab controls how frequently LED colour assignments can reshuffle on a strong bass hit. Range is 30–240 BPM in steps of 5; the label updates live to show the current value. Default is 120 BPM (500 ms between reshuffles). Previously the rate limit was hardcoded at 1000 ms
 
 ### 3.6.2
 

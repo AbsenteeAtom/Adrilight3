@@ -40,11 +40,12 @@ namespace adrilight.Fakes
         public bool BlackBarDetectionEnabled { get; set; } = true;
         public byte BlackBarLuminanceThreshold { get; set; } = 20;
         public bool SleepWakeAwarenessEnabled { get; set; } = true;
-        public string AdrilightVersion { get; set; } = "3.6.2";
+        public string AdrilightVersion { get; set; } = "3.6.3";
 
         public AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get; set; } = AlternateWhiteBalanceModeEnum.Off;
         public byte SoundToLightSensitivity { get; set; } = 50;
         public byte SoundToLightSmoothing { get; set; } = 50;
+        public int  SoundToLightMaxBpm { get; set; } = 120;
         public float SoundToLightRedGain   { get; set; } = 0.6f;
         public float SoundToLightGreenGain { get; set; } = 1.05f;
         public float SoundToLightBlueGain  { get; set; } = 1.5f;

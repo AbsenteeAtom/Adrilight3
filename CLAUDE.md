@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.6.2 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.6.3 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -426,6 +426,15 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 7. **Spurious 'no pipeline' warning suppressed:** `ModeManager.SetMode()` no longer warns when `_activeMode == ScreenCapture` — `DesktopDuplicatorReader` manages itself via `PropertyChanged` and intentionally has no `ILightingMode` entry.
 8. **Diagnostics Copy log button:** `CopyToClipboardCommand` added to `DiagnosticsViewModel`; copies all `FilteredEntries` (oldest-first, full timestamp/level/logger/message) to clipboard. "Copy log" button added to filter toolbar in `Diagnostics.xaml`.
 9. **AudioCaptureReaderTests updated:** `MakeSettings` mock sets up gain properties; `FrequencyToWavelength_20kHz_Returns400nm` replaces 10 kHz variant; old band-model tests (`BuildBands_Returns32Bands`, `BandBinLo_NonDecreasingAcrossBands`, `LowBand_HasWarmColor`, `HighBand_HasCoolColor`, `BurstAtAssignedBand_LightsUpSpot`, `HighSensitivity_BrighterThanLowSensitivity`) added. Total tests: 86/86.
+
+### 2026-03-25 — Max BPM slider + settings diagnostics + beat/channel fixes (v3.6.3)
+1. **Max BPM slider:** `SoundToLightMaxBpm` int property (default 120) added to `IUserSettings`, `UserSettings`, `UserSettingsFake`. New 440-wide card on `SoundToLightSetup.xaml` between Smoothing and Colour Channel Gain — snap-to-tick slider (30–240, steps of 5), dynamic label `"Max BPM: {value}"`. `AudioCaptureReader` replaces hardcoded `ReshuffleRateLimitMs = 1000` with `60000 / Math.Max(1, _settings.SoundToLightMaxBpm)` (computed each beat check). Default 120 BPM = 500 ms interval.
+2. **Settings changes logged to Diagnostics:** `UserSettings.PropertyChanged` subscription added in `App.xaml.cs` after startup version-write. Logs `Setting changed: {PropertyName} = {value}` at Info level (appears in Diagnostics tab). Excludes `AdrilightVersion`, `ConfigFileVersion`, `InstallationId`.
+3. **Beat detection log demoted to Debug:** Was at Info (fired every ~second during music — too noisy). Changed to `_log.Debug`.
+4. **Surround device mono-mix fix:** `useCh = Math.Min(ch, 2)` in `OnAudioData` prevents 7.1/surround devices diluting the signal across all 8 channels. `reference` raised `0.01f` → `0.04f` to compensate for the now-correct amplitude.
+5. **Beat detection fixed threshold:** Replaced dynamic `rawBass > smoothedBass × multiplier` (self-defeating after ~300 ms) with `beatThresh = max(0.005f / sensScale, 0.0005f)`.
+6. **AudioCaptureReaderTests:** `MakeSettings` gains `maxBpm` parameter; priming-frame pattern added to two tests; `Beat_TriggersReshuffle` comment updated. Total tests: 86/86.
+7. Version bumped to 3.6.3.
 
 ### 2026-03-24 — Diagnostics polish (v3.6.2, local only)
 1. **Beat detection log demoted to Debug:** `"Beat detected"` was at Info so it appeared in the Diagnostics tab every second during music — too noisy. Changed back to `_log.Debug`.

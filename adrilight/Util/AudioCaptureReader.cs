@@ -69,7 +69,7 @@ namespace adrilight.Util
         // Beat detection state
         private long  _lastReshuffleMs;
 
-        private const int   ReshuffleRateLimitMs = 1000;
+        // Reshuffle rate limit is derived from SoundToLightMaxBpm at call time: 60 000 ms / BPM
 
         private volatile bool _isRunning;
 
@@ -188,8 +188,9 @@ namespace adrilight.Util
             float beatThresh = Math.Max(0.005f / sensScale, 0.0005f);
             bool  isBeat     = rawBass > beatThresh;
 
+            int  rateLimitMs = 60000 / Math.Max(1, _settings.SoundToLightMaxBpm);
             long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            if (isBeat && (nowMs - _lastReshuffleMs) >= ReshuffleRateLimitMs)
+            if (isBeat && (nowMs - _lastReshuffleMs) >= rateLimitMs)
             {
                 _lastReshuffleMs = nowMs;
                 ShuffleSpotAssignments();

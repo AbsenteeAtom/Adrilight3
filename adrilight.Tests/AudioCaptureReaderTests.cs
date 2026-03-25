@@ -28,11 +28,12 @@ namespace adrilight.Tests
         // ── Helpers ──────────────────────────────────────────────────────────────
 
         private static Mock<IUserSettings> MakeSettings(byte sensitivity = 50, byte smoothing = 1,
-            float redGain = 0.6f, float greenGain = 0.85f, float blueGain = 1.0f)
+            float redGain = 0.6f, float greenGain = 0.85f, float blueGain = 1.0f, int maxBpm = 120)
         {
             var m = new Mock<IUserSettings>();
             m.SetupGet(s => s.SoundToLightSensitivity).Returns(sensitivity);
             m.SetupGet(s => s.SoundToLightSmoothing).Returns(smoothing);
+            m.SetupGet(s => s.SoundToLightMaxBpm).Returns(maxBpm);
             m.SetupGet(s => s.SoundToLightRedGain).Returns(redGain);
             m.SetupGet(s => s.SoundToLightGreenGain).Returns(greenGain);
             m.SetupGet(s => s.SoundToLightBlueGain).Returns(blueGain);

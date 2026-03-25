@@ -24,7 +24,7 @@
         <materialDesign:Card Margin="4 4 4 4" Grid.Row="0">
             <StackPanel Margin="38 28 38 28">
                 <TextBlock FontSize="24" FontWeight="Bold" Margin="0 0 0 8">adrilight</TextBlock>
-                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.6.2 — AbsenteeAtom Edition</TextBlock>
+                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.6.3 — AbsenteeAtom Edition</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 6">
                     Ambient LED lighting for Windows. Captures your screen in real time using the Desktop Duplication API,
                     calculates the average colour across zones around the edge of the screen, and drives a WS2812b LED
@@ -39,7 +39,17 @@
         <!-- What's new -->
         <materialDesign:Card Margin="4 0 4 4" Grid.Row="1">
             <StackPanel Margin="38 28 38 28">
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.6.2</TextBlock>
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.6.3</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Sound to Light — Max BPM</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● New Max BPM slider on the Sound to Light settings tab. Controls how frequently LED
+                    colour assignments can reshuffle on a strong bass hit. Range is 30–240 BPM in steps
+                    of 5; the label updates live to show the current value. Default is 120 BPM (500 ms
+                    between reshuffles). Previously the rate limit was hardcoded at 1000 ms.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.6.2</TextBlock>
 
                 <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Diagnostics</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
@@ -66,8 +76,8 @@
                     regardless of how many channels the device reports.
                 </TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
-                    ● Beat events are now logged at Info level and appear in the Diagnostics tab in real
-                    time — useful for confirming the pipeline is responding to the music.
+                    ● Beat events are logged and visible in the Diagnostics tab — useful for confirming
+                    the pipeline is responding to the music.
                 </TextBlock>
 
                 <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.6.0</TextBlock>

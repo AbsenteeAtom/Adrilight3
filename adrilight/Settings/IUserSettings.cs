@@ -59,6 +59,7 @@ namespace adrilight
         // Sound to Light settings
         byte SoundToLightSensitivity { get; set; }
         byte SoundToLightSmoothing { get; set; }
+        int  SoundToLightMaxBpm { get; set; }
         float SoundToLightRedGain { get; set; }
         float SoundToLightGreenGain { get; set; }
         float SoundToLightBlueGain { get; set; }
