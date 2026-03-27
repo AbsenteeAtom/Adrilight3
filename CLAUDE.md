@@ -24,7 +24,7 @@ adrilight/
   Fakes/                         — Design-time fake implementations
   Settings/                      — IUserSettings interface + UserSettings impl
   Spots/                         — ISpot / Spot / ISpotSet / SpotSet
-  Util/                          — SerialStream, TcpControlServer, SleepWakeController, NightLightDetection, FakeSerialPort, etc.
+  Util/                          — SerialStream, TcpControlServer, SleepWakeController, NightLightDetection, MonitorEnumerator, MonitorInfo, FakeSerialPort, etc.
   ValidationRules/               — WPF validation
   View/                          — XAML views + SettingsWindowComponents
   ViewModel/                     — SettingsViewModel, ViewModelLocator
@@ -40,7 +40,7 @@ adrilight.Tests/
   AudioCaptureReaderTests.cs    — ModeId, Start/Stop wiring, zero-audio, burst at assigned band, sensitivity, band model helpers (BuildBands, BandBinLo, BandCenterFrequency), wavelength/colour pure helpers (20 tests)
 ```
 
-Total tests: **101/101 passing**
+Total tests: **101/101 passing** (no GPU required — all hardware-bound code is excluded at the DXGI boundary)
 
 ### Running tests
 ```
@@ -51,7 +51,7 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 The test suite covers all logic that does not require a live GPU or display output. The hard boundary is the DXGI/Direct3D11 layer inside `DesktopDuplicator`.
 
-**What is covered (86 tests):**
+**What is covered (101 tests):**
 
 | Test file | What it exercises |
 |---|---|
@@ -85,9 +85,9 @@ Everything upstream of `BitmapData` — acquiring a frame from DXGI, building mi
 
 ### Building a local executable
 ```
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.6.0
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-X.Y.Z
 ```
-Output goes to `publish/adrilight-3.6.0/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
+Output goes to `publish/adrilight-X.Y.Z/adrilight.exe` (~24MB, requires .NET 8 Desktop Runtime x64).
 The `publish/` folder is excluded from git via `.gitignore`.
 
 ### End-user installation guide
@@ -97,7 +97,7 @@ The `publish/` folder is excluded from git via `.gitignore`.
 1. Run the publish command above to produce the release folder.
 2. Copy the Arduino sketch into the publish folder, preserving its subfolder:
    ```
-   Arduino/adrilight/adrilight.ino  →  publish/adrilight-3.4.1/Arduino/adrilight/adrilight.ino
+   Arduino/adrilight/adrilight.ino  →  publish/adrilight-X.Y.Z/Arduino/adrilight/adrilight.ino
    ```
 3. Verify the `.exe` file version is correctly stamped (right-click → Properties → Details).
 4. Zip the entire `publish/adrilight-X.Y.Z/` folder as `adrilight-X.Y.Z.zip`.
@@ -112,7 +112,12 @@ The `publish/` folder is excluded from git via `.gitignore`.
 The main loop runs on a background thread (`DesktopDuplicatorReader`):
 
 ```
-DesktopDuplicator.GetLatestFrame()        — DXGI Desktop Duplication, ~8× downscale via mipmap level 3
+[if SpanningEnabled]
+    DesktopDuplicator(AdapterIndex, OutputIndex).GetLatestFrame()   — left monitor, ~8× downscale
+    DesktopDuplicator(AdapterIndex2, OutputIndex2).GetLatestFrame() — right monitor, ~8× downscale
+    StitchBitmaps()                       — row-by-row CopyMemory, width=w1+w2, height=max(h1,h2)
+[else]
+    DesktopDuplicator(AdapterIndex, OutputIndex).GetLatestFrame()   — single monitor, ~8× downscale
     → Bitmap (locked as Format32bppRgb)
     → DetectBlackBars()                   — sparse edge scan, O(width + height), returns activeRegion Rectangle
     → foreach Spot (parallel if ≥40):
@@ -264,6 +269,20 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 - Logic extracted to `SleepWakeController` so the state machine is unit-testable without a WPF host
 
 **Black Bar Detection** (`DesktopDuplicatorReader.cs`) — see dedicated section above
+
+**Multi-Monitor Support** (`Util/MonitorEnumerator.cs`, `Util/MonitorInfo.cs`, v3.7.0)
+- `MonitorEnumerator.Enumerate()` — static helper; enumerates DXGI adapters/outputs, filters `IsAttachedToDesktop`, cross-references `Screen.AllScreens` by `DeviceName` for primary flag and resolution. Labels: `"Display N — W×H (Primary)"` / `"Display N — W×H"`. Falls back to a single default entry on DXGI error.
+- `UserSettings.AdapterIndex` / `OutputIndex` (int, default 0) — persisted; selecting a monitor takes effect immediately (next frame).
+- `DesktopDuplicatorReader` reconstructs `DesktopDuplicator` on index change via `PropertyChanged`.
+- `SettingsViewModel.AvailableMonitors` / `SelectedMonitor` — populated at startup; `SelectedMonitor` setter writes indices to settings.
+- Capture Display card on General Setup tab with `ComboBox`.
+
+**Dual-Display Spanning** (`DesktopDuplicatorReader.cs`, v3.7.1)
+- `UserSettings.SpanningEnabled` / `AdapterIndex2` / `OutputIndex2` — second display for side-by-side stitching.
+- When `SpanningEnabled`: captures both monitors sequentially, stitches via `StitchBitmaps()` (reusable `_stitchedBitmap`, row-by-row `SharpDX.Utilities.CopyMemory`). `SpanningEnabled = false` is a strict no-op.
+- `_desktopDuplicator2` disposed and reconstructed on spanning setting changes.
+- `SettingsViewModel.SelectedMonitor2` — second monitor selector, shares `AvailableMonitors` list.
+- "Span two displays" toggle + second `ComboBox` (visibility bound to `SpanningEnabled`) on General Setup tab.
 
 ### Performance Improvements
 - Default `LimitFps` reduced from 60 to 30 in `UserSettings.cs`
@@ -563,5 +582,8 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 - SharpDX assemblies are referenced directly from the NuGet cache via HintPath — not via PackageReference — because the netstandard build lacks `AcquireNextFrame`
 - The TCP control server listens on `127.0.0.1:5080`
 - Log files are written to `logs\` next to `adrilight.exe` — NLog is configured programmatically in `App.xaml.cs` (not `App.config`, which .NET 8 ignores for NLog)
+- **Multi-monitor — `AvailableMonitors` is populated once at startup.** If the user connects a new display after launch, the list will not update until adrilight is restarted. This is documented in the UI card description. Live hotplug via `SystemEvents.DisplaySettingsChanged` is not implemented.
+- **Spanning — `SpanningEnabled = false` is a strict no-op.** The non-spanning code path in `GetNextFrame()` is entirely unchanged. Only enable spanning code paths when `UserSettings.SpanningEnabled` is true. `_desktopDuplicator2`, `_rawBitmap1`, `_rawBitmap2`, and `_stitchedBitmap` are all null in single-monitor mode.
+- **Spanning — set `SpotsX` to the total LED count across both monitors' combined top and bottom runs.** The stitched frame is treated as a single wide screen by `SpotSet`; spot rectangles map proportionally across both displays.
 - **Sound to Light — beat detection must use a fixed threshold, not a dynamic one.** A dynamic threshold (`rawBass > smoothedBass × multiplier`) is self-defeating: the smoother adapts to the current level within ~300 ms so the threshold ends up ≥ rawBass permanently. Use `beatThresh = max(K / sensScale, floor)` where K is a fixed constant. Rate-limiting (once per second) handles over-triggering.
 - **Sound to Light — WASAPI multi-channel devices.** `WasapiLoopbackCapture` may report 6 or 8 channels on surround devices, but stereo content only populates channels 0 (Front-L) and 1 (Front-R). Always cap the mono mix at `useCh = Math.Min(ch, 2)` and divide by `useCh`, NOT by `ch`. Averaging all channels dilutes amplitude by ch/2, making beat detection and brightness both fail. `reference` in `ApplyToSpots` is calibrated for a 2-channel mono mix.

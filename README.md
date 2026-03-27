@@ -194,7 +194,7 @@ Compared to the original fabsenet v2.0.9:
 2. Run `adrilight.exe` — it starts minimised to the system tray.
 3. Double-click the tray icon (or right-click → Open) to open the settings window.
 4. **Serial Communication Setup** — select your Arduino's COM port and enable Transfer.
-5. **Physical LED Setup** — enter the number of LEDs across the top/bottom (`SpotsX`) and down each side (`SpotsY`).
+5. **Physical LED Setup** — enter the number of LEDs across the top/bottom (`SpotsX`) and down each side (`SpotsY`). For spanning two displays, set `SpotsX` to the combined LED count across both monitors' top and bottom runs.
 6. **Spot Detection Setup** — adjust border distance and spot size to match your screen.
 7. **White Balance** — tune the RGB balance of your LEDs if colours look off.
 8. Adjust the `Offset LED` value until the colours align with the correct physical LED positions.
@@ -256,10 +256,10 @@ dotnet test adrilight.Tests/adrilight.Tests.csproj
 
 **Publish a local executable:**
 ```bash
-dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-3.6.0
+dotnet publish adrilight/adrilight.csproj -c Release --self-contained false -o ./publish/adrilight-X.Y.Z
 ```
 
-Output goes to `publish/adrilight-3.6.0/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
+Output goes to `publish/adrilight-X.Y.Z/adrilight.exe` (~24 MB). Requires .NET 8 Desktop Runtime x64 on the target machine.
 
 ---
 
@@ -271,7 +271,7 @@ Output goes to `publish/adrilight-3.6.0/adrilight.exe` (~24 MB). Requires .NET 8
   - UAC prompts
   - Some DRM-protected content
 - Arduino clones that cannot reliably reach **1,000,000 baud** will not work. The high baud rate is required for smooth LED updates.
-- Only the primary monitor is captured.
+- The display list on the General tab is populated at startup — connect all monitors before launching adrilight.
 
 ---
 
