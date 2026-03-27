@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.6.5 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.7.0 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -426,6 +426,16 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 7. **Spurious 'no pipeline' warning suppressed:** `ModeManager.SetMode()` no longer warns when `_activeMode == ScreenCapture` — `DesktopDuplicatorReader` manages itself via `PropertyChanged` and intentionally has no `ILightingMode` entry.
 8. **Diagnostics Copy log button:** `CopyToClipboardCommand` added to `DiagnosticsViewModel`; copies all `FilteredEntries` (oldest-first, full timestamp/level/logger/message) to clipboard. "Copy log" button added to filter toolbar in `Diagnostics.xaml`.
 9. **AudioCaptureReaderTests updated:** `MakeSettings` mock sets up gain properties; `FrequencyToWavelength_20kHz_Returns400nm` replaces 10 kHz variant; old band-model tests (`BuildBands_Returns32Bands`, `BandBinLo_NonDecreasingAcrossBands`, `LowBand_HasWarmColor`, `HighBand_HasCoolColor`, `BurstAtAssignedBand_LightsUpSpot`, `HighSensitivity_BrighterThanLowSensitivity`) added. Total tests: 86/86.
+
+### 2026-03-27 — Multi-monitor support (v3.7.0)
+1. **`MonitorInfo`** model added (`Util/MonitorInfo.cs`) — carries `AdapterIndex`, `OutputIndex`, `DisplayLabel`; `ToString()` returns the label for WPF binding.
+2. **`MonitorEnumerator`** static helper added (`Util/MonitorEnumerator.cs`) — enumerates DXGI adapters and outputs via SharpDX `Factory1`, filters to `IsAttachedToDesktop == true`, cross-references with `System.Windows.Forms.Screen.AllScreens` by `DeviceName` to obtain the primary flag and pixel dimensions. Labels: "Display N — W×H (Primary)" or "Display N — W×H". Falls back to a single default entry on any DXGI error.
+3. **`AdapterIndex`** and **`OutputIndex`** int properties (default `0`) added to `IUserSettings`, `UserSettings`, `UserSettingsFake`. Defaults preserve existing behaviour for single-monitor users; no migration needed.
+4. **`DesktopDuplicatorReader`**: `GetNextFrame()` passes `UserSettings.AdapterIndex` / `UserSettings.OutputIndex` to `new DesktopDuplicator(...)` instead of `(0, 0)`. `PropertyChanged` handler nulls `_desktopDuplicator` when either index changes, triggering reconstruction on the next frame.
+5. **`SettingsViewModel`**: `AvailableMonitors` (`IReadOnlyList<MonitorInfo>`) populated once at startup via `MonitorEnumerator.Enumerate()`; `SelectedMonitor` two-way property reads `AdapterIndex/OutputIndex` from settings and writes them back on selection change.
+6. **`GeneralSetup.xaml`**: New "Capture Display" card with a `ComboBox` bound to `AvailableMonitors` / `SelectedMonitor`. Placed between Lighting Mode and Limit FPS cards. Icon: `MonitorMultiple`.
+7. No new tests — `MonitorEnumerator` calls DXGI hardware (same exclusion boundary as `DesktopDuplicator`); existing 101 tests unaffected.
+8. Version bumped to 3.7.0.
 
 ### 2026-03-26 — Piecewise colour mapping, band spread, smooth reshuffles (v3.6.5)
 1. **`FrequencyToWavelength` redesigned** (piecewise): 20 Hz–10 kHz → logarithmic, 700 nm→490 nm (red→cyan); 10 kHz–14 kHz → linear, 490 nm→440 nm (cyan→blue); 14 kHz–20 kHz → linear, 440 nm→380 nm (blue→violet). Mathematically continuous at both breakpoints.

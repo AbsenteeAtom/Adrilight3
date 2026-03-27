@@ -195,6 +195,30 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <materialDesign:PackIcon Kind="MonitorMultiple" Margin="0 8 0 0" Width="132" Height="132"
+                                         VerticalAlignment="Center"
+                                         HorizontalAlignment="Center"/>
+
+                <StackPanel Grid.Row="1" Margin="8 24 8 16">
+                    <TextBlock FontWeight="Bold">Capture Display</TextBlock>
+                    <ComboBox Margin="0 8 0 0"
+                              ItemsSource="{Binding AvailableMonitors}"
+                              SelectedItem="{Binding SelectedMonitor, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayLabel" />
+                    <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" TextAlignment="Justify" Margin="0 8 0 0">
+                        Select which display drives the LEDs. The list is populated at startup — restart adrilight after connecting a new display.
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </materialDesign:Card>
+
+        <materialDesign:Card Margin="4 4 4 4" Width="300">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 

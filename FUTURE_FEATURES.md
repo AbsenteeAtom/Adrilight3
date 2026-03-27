@@ -4,39 +4,6 @@ This file documents planned features for future versions of adrilight. Each entr
 
 ---
 
-## Feature: Multi-Monitor Support
-
-**Description:** Allow the user to select which monitor drives the LEDs rather than always defaulting to the first DXGI adapter and output.
-
-**Origin:** Community request
-
-**Complexity:** Medium
-
-**Technical Notes:**
-- `DesktopDuplicator` is currently hardcoded to `new DesktopDuplicator(0, 0)` — adapter index 0, output index 0.
-- Both indices need to be exposed as `UserSettings` properties (e.g. `AdapterIndex`, `OutputIndex`) with appropriate defaults.
-- A monitor selection UI is needed — ideally a dropdown on the General Setup tab listing available monitors by friendly name, populated by enumerating DXGI adapters and outputs at startup.
-- `DesktopDuplicatorReader` constructs `DesktopDuplicator` directly; it will need to read the new settings and reconstruct the duplicator when the selection changes (similar to how `SerialStream` reopens the COM port when settings change).
-
----
-
-## Feature: Sound to Light
-
-**Description:** An alternative LED mode that uses WASAPI loopback audio capture via NAudio, performing FFT frequency analysis and mapping frequency bands to LED zones for an audio-reactive lighting effect.
-
-**Origin:** Community request
-
-**Complexity:** Medium
-
-**Technical Notes:**
-- Completely independent of the screen capture pipeline — no screen frames are needed in this mode.
-- ~~Requires a **mode manager** to switch cleanly between screen capture mode and audio reactive mode; both pipelines cannot run simultaneously without contention over the `SpotSet`.~~ **Done (v3.5.0):** `IModeManager` / `ModeManager` implemented. `SetMode(LightingMode.SoundToLight)` already accepted by the TCP API. The next step is implementing `AudioCaptureReader` as an `ILightingMode` and wiring it into `ModeManager.SetMode()`.
-- NAudio (WASAPI loopback) captures system audio output without requiring a microphone.
-- FFT maps frequency bands to LED positions: low bass frequencies → bottom LEDs, mid-range → sides, high frequencies → top, or user-configurable zone mapping.
-- **Future consideration** — make the warm-bottom/cool-top colour tinting toggleable, offering a White Only mode where all zones drive pure white at varying brightness. To be implemented if requested by the community.
-
----
-
 ## Feature: Gamer Mode
 
 **Description:** An advanced event-driven LED mode that classifies audio events in real time and combines them with full-frame screen analysis to produce contextually appropriate LED responses. Designed to make lighting feel like a live commentary on what is happening in the game, not just a passive mirror of screen colours.
@@ -45,9 +12,13 @@ This file documents planned features for future versions of adrilight. Each entr
 
 **Complexity:** High
 
-**Prerequisites:** `IModeManager` / `ModeManager` implemented in v3.5.0. Sound to Light (the simpler audio mode) should be built and validated first before tackling Gamer Mode's blending and temporal sequencing.
+**Prerequisites:** `IModeManager` / `ModeManager` implemented in v3.5.0. Sound to Light (the simpler audio mode) built and validated in v3.6.x. Multi-monitor support added in v3.7.0.
 
 **Technical Notes:**
+
+### Architecture consideration
+
+Gamer Mode is an overlay on Screen Capture, not a replacement mode. Screen Capture runs continuously as the base layer; an audio event classifier runs in parallel and briefly overrides spot colours during detected events before handing back. This differs from the mutual-exclusivity assumption in the current `ModeManager.SetMode()` — the overlay concept must be designed as a prerequisite before any classifier work begins.
 
 ### Audio Event Classification
 

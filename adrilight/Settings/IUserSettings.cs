@@ -56,6 +56,11 @@ namespace adrilight
         string AdrilightVersion { get; set; }
         AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get; set; }
 
+        // Multi-monitor support — adapter and output indices for DXGI screen capture.
+        // Default 0,0 preserves existing behaviour for single-monitor users.
+        int AdapterIndex { get; set; }
+        int OutputIndex  { get; set; }
+
         // Sound to Light settings
         byte SoundToLightSensitivity { get; set; }
         byte SoundToLightSmoothing { get; set; }

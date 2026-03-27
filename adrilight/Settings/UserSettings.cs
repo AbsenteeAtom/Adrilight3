@@ -49,6 +49,8 @@ namespace adrilight
         private float _soundToLightBlueGain  = 1.5f;
         private bool _soundToLightAutoBpm = true;
         private bool _soundToLightBandSpread = false;
+        private int _adapterIndex = 0;
+        private int _outputIndex  = 0;
 
         public int ConfigFileVersion { get => _configFileVersion; set => SetProperty(ref _configFileVersion, value); }
         public bool Autostart { get => _autostart; set => SetProperty(ref _autostart, value); }
@@ -92,5 +94,7 @@ namespace adrilight
         public float SoundToLightBlueGain  { get => _soundToLightBlueGain;  set => SetProperty(ref _soundToLightBlueGain,  value); }
         public bool SoundToLightAutoBpm    { get => _soundToLightAutoBpm;    set => SetProperty(ref _soundToLightAutoBpm,    value); }
         public bool SoundToLightBandSpread { get => _soundToLightBandSpread; set => SetProperty(ref _soundToLightBandSpread, value); }
+        public int AdapterIndex { get => _adapterIndex; set => SetProperty(ref _adapterIndex, value); }
+        public int OutputIndex  { get => _outputIndex;  set => SetProperty(ref _outputIndex,  value); }
     }
 }

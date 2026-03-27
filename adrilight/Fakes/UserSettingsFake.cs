@@ -40,7 +40,7 @@ namespace adrilight.Fakes
         public bool BlackBarDetectionEnabled { get; set; } = true;
         public byte BlackBarLuminanceThreshold { get; set; } = 20;
         public bool SleepWakeAwarenessEnabled { get; set; } = true;
-        public string AdrilightVersion { get; set; } = "3.6.5";
+        public string AdrilightVersion { get; set; } = "3.7.0";
 
         public AlternateWhiteBalanceModeEnum AlternateWhiteBalanceMode { get; set; } = AlternateWhiteBalanceModeEnum.Off;
         public byte SoundToLightSensitivity { get; set; } = 50;
@@ -51,6 +51,8 @@ namespace adrilight.Fakes
         public float SoundToLightBlueGain  { get; set; } = 1.5f;
         public bool SoundToLightAutoBpm    { get; set; } = true;
         public bool SoundToLightBandSpread { get; set; } = false;
+        public int AdapterIndex { get; set; } = 0;
+        public int OutputIndex  { get; set; } = 0;
 #pragma warning disable CS0067
         public event PropertyChangedEventHandler PropertyChanged;
 #pragma warning restore CS0067

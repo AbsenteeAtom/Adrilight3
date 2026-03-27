@@ -4,7 +4,7 @@
 
 > An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
 
-**adrilight 3.6.5 — AbsenteeAtom Edition**
+**adrilight 3.7.0 — AbsenteeAtom Edition**
 Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
 The original author retired the project; this fork modernises it for .NET 8 and adds new features.
 
@@ -41,6 +41,10 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 ---
 
 ## What's new
+
+### 3.7.0
+
+- **Multi-monitor support** — a new Capture Display selector on the General tab lets you choose which monitor drives the LEDs. Previously adrilight always captured the first DXGI output. Available displays are enumerated at startup and labelled with their resolution and primary status (e.g. "Display 1 — 1920×1080 (Primary)"). Only displays currently attached to the desktop are listed. Changing the selection takes effect immediately — the capture pipeline rebuilds on the next frame. Single-monitor users see a single entry and no behaviour change. The selection persists in settings across sessions
 
 ### 3.6.5
 

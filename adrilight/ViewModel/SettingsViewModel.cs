@@ -131,6 +131,26 @@ namespace adrilight.ViewModel
         public IUserSettings Settings { get; }
         public IContext Context { get; }
         public IList<string> AvailableComPorts { get; } = SerialPort.GetPortNames().Concat(new[] { "Fake Port" }).ToList();
+
+        public IReadOnlyList<Util.MonitorInfo> AvailableMonitors { get; } = Util.MonitorEnumerator.Enumerate();
+
+        public Util.MonitorInfo SelectedMonitor
+        {
+            get
+            {
+                foreach (var m in AvailableMonitors)
+                    if (m.AdapterIndex == Settings.AdapterIndex && m.OutputIndex == Settings.OutputIndex)
+                        return m;
+                return AvailableMonitors.Count > 0 ? AvailableMonitors[0] : null;
+            }
+            set
+            {
+                if (value == null) return;
+                Settings.AdapterIndex = value.AdapterIndex;
+                Settings.OutputIndex  = value.OutputIndex;
+                OnPropertyChanged(nameof(SelectedMonitor));
+            }
+        }
         public IList<ISelectableViewPart> SelectableViewParts { get; }
         public IList<int> PossibleLedCountsHorizontal { get; }
         public IList<int> PossibleLedCountsVertical { get; }

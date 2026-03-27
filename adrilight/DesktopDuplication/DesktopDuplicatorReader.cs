@@ -42,6 +42,14 @@ namespace adrilight
         {
             switch (e.PropertyName)
             {
+                case nameof(UserSettings.AdapterIndex):
+                case nameof(UserSettings.OutputIndex):
+                    // Discard the current duplicator so GetNextFrame() rebuilds it with the new indices.
+                    _desktopDuplicator?.Dispose();
+                    _desktopDuplicator = null;
+                    RefreshCapturingState();
+                    break;
+
                 case nameof(UserSettings.TransferActive):
                 case nameof(UserSettings.IsPreviewEnabled):
                 case nameof(SettingsViewModel.IsSettingsWindowOpen):
@@ -293,7 +301,7 @@ namespace adrilight
         private Bitmap GetNextFrame(Bitmap reusableBitmap)
         {
             if (_desktopDuplicator == null)
-                _desktopDuplicator = new DesktopDuplicator(0, 0);
+                _desktopDuplicator = new DesktopDuplicator(UserSettings.AdapterIndex, UserSettings.OutputIndex);
 
             try
             {
