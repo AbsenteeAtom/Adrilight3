@@ -4,7 +4,7 @@
 
 > An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
 
-**adrilight 3.7.0 — AbsenteeAtom Edition**
+**adrilight 3.7.1 — AbsenteeAtom Edition**
 Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
 The original author retired the project; this fork modernises it for .NET 8 and adds new features.
 
@@ -41,6 +41,10 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 ---
 
 ## What's new
+
+### 3.7.1
+
+- **Dual-display spanning** — enable Span two displays on the General tab to stitch two side-by-side monitors into one wide ambient surface. Both displays are captured simultaneously and stitched at 1/8 scale before spot sampling, so the full spot pipeline (black bar detection, colour correction, preview) works on the combined frame without modification. Set SpotsX to the total LED count across both monitors' top and bottom runs. The second monitor is selected from the same dropdown list as the primary; the setting takes effect immediately without restart
 
 ### 3.7.0
 

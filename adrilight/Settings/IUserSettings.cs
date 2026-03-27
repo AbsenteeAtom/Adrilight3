@@ -61,6 +61,12 @@ namespace adrilight
         int AdapterIndex { get; set; }
         int OutputIndex  { get; set; }
 
+        // Dual-monitor spanning — stitch two displays side-by-side into one wide frame.
+        // AdapterIndex2/OutputIndex2 identify the right-hand display.
+        bool SpanningEnabled { get; set; }
+        int  AdapterIndex2   { get; set; }
+        int  OutputIndex2    { get; set; }
+
         // Sound to Light settings
         byte SoundToLightSensitivity { get; set; }
         byte SoundToLightSmoothing { get; set; }

@@ -151,6 +151,24 @@ namespace adrilight.ViewModel
                 OnPropertyChanged(nameof(SelectedMonitor));
             }
         }
+
+        public Util.MonitorInfo SelectedMonitor2
+        {
+            get
+            {
+                foreach (var m in AvailableMonitors)
+                    if (m.AdapterIndex == Settings.AdapterIndex2 && m.OutputIndex == Settings.OutputIndex2)
+                        return m;
+                return AvailableMonitors.Count > 0 ? AvailableMonitors[0] : null;
+            }
+            set
+            {
+                if (value == null) return;
+                Settings.AdapterIndex2 = value.AdapterIndex;
+                Settings.OutputIndex2  = value.OutputIndex;
+                OnPropertyChanged(nameof(SelectedMonitor2));
+            }
+        }
         public IList<ISelectableViewPart> SelectableViewParts { get; }
         public IList<int> PossibleLedCountsHorizontal { get; }
         public IList<int> PossibleLedCountsVertical { get; }

@@ -16,6 +16,9 @@
         FontFamily="{StaticResource MaterialDesignFont}"
              
              d:DesignHeight="900" d:DesignWidth="980.759">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
     <WrapPanel Margin="0 0 8 8">
 
 
@@ -207,8 +210,21 @@
                               ItemsSource="{Binding AvailableMonitors}"
                               SelectedItem="{Binding SelectedMonitor, Mode=TwoWay}"
                               DisplayMemberPath="DisplayLabel" />
+                    <DockPanel Margin="0 12 0 0">
+                        <ToggleButton DockPanel.Dock="Right"
+                                      Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                      VerticalAlignment="Center" Margin="8 0 0 0"
+                                      IsChecked="{Binding Settings.SpanningEnabled}" />
+                        <TextBlock FontWeight="Bold" VerticalAlignment="Center">Span two displays</TextBlock>
+                    </DockPanel>
+                    <ComboBox Margin="0 8 0 0"
+                              Visibility="{Binding Settings.SpanningEnabled, Converter={StaticResource BoolToVis}}"
+                              ItemsSource="{Binding AvailableMonitors}"
+                              SelectedItem="{Binding SelectedMonitor2, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayLabel" />
                     <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" TextAlignment="Justify" Margin="0 8 0 0">
-                        Select which display drives the LEDs. The list is populated at startup — restart adrilight after connecting a new display.
+                        Select which display drives the LEDs. Enable Span to stitch two side-by-side displays into one wide ambient surface — select the right-hand display in the second dropdown.
+                        The list is populated at startup — restart adrilight after connecting a new display.
                     </TextBlock>
                 </StackPanel>
             </Grid>

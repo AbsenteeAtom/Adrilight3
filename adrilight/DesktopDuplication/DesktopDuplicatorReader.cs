@@ -44,9 +44,18 @@ namespace adrilight
             {
                 case nameof(UserSettings.AdapterIndex):
                 case nameof(UserSettings.OutputIndex):
-                    // Discard the current duplicator so GetNextFrame() rebuilds it with the new indices.
+                    // Discard the primary duplicator so GetNextFrame() rebuilds it with the new indices.
                     _desktopDuplicator?.Dispose();
                     _desktopDuplicator = null;
+                    RefreshCapturingState();
+                    break;
+
+                case nameof(UserSettings.SpanningEnabled):
+                case nameof(UserSettings.AdapterIndex2):
+                case nameof(UserSettings.OutputIndex2):
+                    // Discard the secondary duplicator so GetNextFrame() rebuilds it with the new config.
+                    _desktopDuplicator2?.Dispose();
+                    _desktopDuplicator2 = null;
                     RefreshCapturingState();
                     break;
 
@@ -111,6 +120,10 @@ namespace adrilight
         }
 
         private DesktopDuplicator _desktopDuplicator;
+        private DesktopDuplicator _desktopDuplicator2;
+        private Bitmap _rawBitmap1;
+        private Bitmap _rawBitmap2;
+        private Bitmap _stitchedBitmap;
 
         public async void Run(CancellationToken token)
         {
@@ -194,8 +207,11 @@ namespace adrilight
             finally
             {
                 image?.Dispose();
-                _desktopDuplicator?.Dispose();
-                _desktopDuplicator = null;
+                _rawBitmap1?.Dispose(); _rawBitmap1 = null;
+                _rawBitmap2?.Dispose(); _rawBitmap2 = null;
+                _stitchedBitmap = null; // already disposed via image above when spanning was active
+                _desktopDuplicator?.Dispose();  _desktopDuplicator  = null;
+                _desktopDuplicator2?.Dispose(); _desktopDuplicator2 = null;
                 _log.Debug("Stopped Desktop Duplication Reader.");
                 RunState = RunStateEnum.Stopped;
             }
@@ -303,19 +319,93 @@ namespace adrilight
             if (_desktopDuplicator == null)
                 _desktopDuplicator = new DesktopDuplicator(UserSettings.AdapterIndex, UserSettings.OutputIndex);
 
+            if (!UserSettings.SpanningEnabled)
+            {
+                try
+                {
+                    return _desktopDuplicator.GetLatestFrame(reusableBitmap);
+                }
+                catch (Exception ex)
+                {
+                    if (ex.Message != "_outputDuplication is null")
+                        _log.Error(ex, "GetNextFrame() failed.");
+                    _desktopDuplicator?.Dispose();
+                    _desktopDuplicator = null;
+                    throw;
+                }
+            }
+
+            // Spanning: capture both monitors then stitch side-by-side.
+            if (_desktopDuplicator2 == null)
+                _desktopDuplicator2 = new DesktopDuplicator(UserSettings.AdapterIndex2, UserSettings.OutputIndex2);
+
+            Bitmap frame1, frame2;
             try
             {
-                return _desktopDuplicator.GetLatestFrame(reusableBitmap);
+                frame1 = _desktopDuplicator.GetLatestFrame(_rawBitmap1);
+                frame2 = _desktopDuplicator2.GetLatestFrame(_rawBitmap2);
             }
             catch (Exception ex)
             {
                 if (ex.Message != "_outputDuplication is null")
-                    _log.Error(ex, "GetNextFrame() failed.");
-
-                _desktopDuplicator?.Dispose();
-                _desktopDuplicator = null;
+                    _log.Error(ex, "GetNextFrame() spanning capture failed.");
+                _desktopDuplicator?.Dispose();  _desktopDuplicator  = null;
+                _desktopDuplicator2?.Dispose(); _desktopDuplicator2 = null;
                 throw;
             }
+
+            if (frame1 == null || frame2 == null)
+                return null;
+
+            _rawBitmap1 = frame1;
+            _rawBitmap2 = frame2;
+            return StitchBitmaps(frame1, frame2);
+        }
+
+        private Bitmap StitchBitmaps(Bitmap left, Bitmap right)
+        {
+            int stitchedWidth  = left.Width + right.Width;
+            int stitchedHeight = Math.Max(left.Height, right.Height);
+
+            if (_stitchedBitmap == null
+                || _stitchedBitmap.Width  != stitchedWidth
+                || _stitchedBitmap.Height != stitchedHeight)
+            {
+                _stitchedBitmap?.Dispose();
+                _stitchedBitmap = new Bitmap(stitchedWidth, stitchedHeight, PixelFormat.Format32bppRgb);
+            }
+
+            int leftRowBytes  = left.Width  * 4;
+            int rightRowBytes = right.Width * 4;
+
+            var leftData     = left.LockBits(new Rectangle(0, 0, left.Width,  left.Height),  ImageLockMode.ReadOnly,  PixelFormat.Format32bppRgb);
+            var rightData    = right.LockBits(new Rectangle(0, 0, right.Width, right.Height), ImageLockMode.ReadOnly,  PixelFormat.Format32bppRgb);
+            var stitchedData = _stitchedBitmap.LockBits(new Rectangle(0, 0, stitchedWidth, stitchedHeight), ImageLockMode.WriteOnly, PixelFormat.Format32bppRgb);
+
+            try
+            {
+                for (int y = 0; y < left.Height; y++)
+                {
+                    var src = IntPtr.Add(leftData.Scan0,     y * leftData.Stride);
+                    var dst = IntPtr.Add(stitchedData.Scan0, y * stitchedData.Stride);
+                    SharpDX.Utilities.CopyMemory(dst, src, leftRowBytes);
+                }
+
+                for (int y = 0; y < right.Height; y++)
+                {
+                    var src = IntPtr.Add(rightData.Scan0,    y * rightData.Stride);
+                    var dst = IntPtr.Add(stitchedData.Scan0, y * stitchedData.Stride + leftRowBytes);
+                    SharpDX.Utilities.CopyMemory(dst, src, rightRowBytes);
+                }
+            }
+            finally
+            {
+                left.UnlockBits(leftData);
+                right.UnlockBits(rightData);
+                _stitchedBitmap.UnlockBits(stitchedData);
+            }
+
+            return _stitchedBitmap;
         }
 
         private unsafe void GetAverageColorOfRectangularRegion(Rectangle spotRectangle, int stepy, int stepx,

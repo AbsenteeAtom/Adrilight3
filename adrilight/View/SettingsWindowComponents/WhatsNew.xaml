@@ -24,7 +24,7 @@
         <materialDesign:Card Margin="4 4 4 4" Grid.Row="0">
             <StackPanel Margin="38 28 38 28">
                 <TextBlock FontSize="24" FontWeight="Bold" Margin="0 0 0 8">adrilight</TextBlock>
-                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.7.0 — AbsenteeAtom Edition</TextBlock>
+                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.7.1 — AbsenteeAtom Edition</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 6">
                     Ambient LED lighting for Windows. Captures your screen in real time using the Desktop Duplication API,
                     calculates the average colour across zones around the edge of the screen, and drives a WS2812b LED
@@ -39,7 +39,25 @@
         <!-- What's new -->
         <materialDesign:Card Margin="4 0 4 4" Grid.Row="1">
             <StackPanel Margin="38 28 38 28">
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.7.0</TextBlock>
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.7.1</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Dual-display spanning</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● Enable Span two displays on the General tab to stitch two side-by-side monitors into one
+                    wide ambient surface. Both displays are captured simultaneously, stitched pixel-perfectly
+                    at 1/8 scale, and fed into the existing spot sampling pipeline as a single wide frame.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
+                    ● A second monitor dropdown appears when spanning is enabled — select the right-hand display.
+                    The setting takes effect immediately; no restart required.
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Set SpotsX to the total number of LEDs across the combined top and bottom runs of both
+                    monitors. Black bar detection and all colour corrections continue to work on the stitched frame
+                    without any changes to the LED setup.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 8 0 16">What's new in 3.7.0</TextBlock>
 
                 <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Multi-monitor support</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">

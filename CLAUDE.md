@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.7.0 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.7.1 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -426,6 +426,19 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 7. **Spurious 'no pipeline' warning suppressed:** `ModeManager.SetMode()` no longer warns when `_activeMode == ScreenCapture` — `DesktopDuplicatorReader` manages itself via `PropertyChanged` and intentionally has no `ILightingMode` entry.
 8. **Diagnostics Copy log button:** `CopyToClipboardCommand` added to `DiagnosticsViewModel`; copies all `FilteredEntries` (oldest-first, full timestamp/level/logger/message) to clipboard. "Copy log" button added to filter toolbar in `Diagnostics.xaml`.
 9. **AudioCaptureReaderTests updated:** `MakeSettings` mock sets up gain properties; `FrequencyToWavelength_20kHz_Returns400nm` replaces 10 kHz variant; old band-model tests (`BuildBands_Returns32Bands`, `BandBinLo_NonDecreasingAcrossBands`, `LowBand_HasWarmColor`, `HighBand_HasCoolColor`, `BurstAtAssignedBand_LightsUpSpot`, `HighSensitivity_BrighterThanLowSensitivity`) added. Total tests: 86/86.
+
+### 2026-03-27 — Dual-display spanning (v3.7.1)
+1. **`SpanningEnabled`** (bool, default `false`), **`AdapterIndex2`** / **`OutputIndex2`** (int, default 0) added to `IUserSettings`, `UserSettings`, `UserSettingsFake`. `SpanningEnabled = false` means zero behaviour change for single-monitor users.
+2. **`DesktopDuplicatorReader`** extended:
+   - Fields: `_desktopDuplicator2`, `_rawBitmap1`, `_rawBitmap2`, `_stitchedBitmap`.
+   - `PropertyChanged` handler: `SpanningEnabled`/`AdapterIndex2`/`OutputIndex2` changes dispose and null `_desktopDuplicator2`; next `GetNextFrame()` call reconstructs it.
+   - `GetNextFrame()`: when `SpanningEnabled` is off, existing single-monitor path unchanged. When on, constructs `_desktopDuplicator2`, captures both frames, returns `StitchBitmaps(frame1, frame2)`.
+   - `StitchBitmaps()`: reusable `_stitchedBitmap` (width = w1+w2, height = max(h1,h2)); row-by-row `SharpDX.Utilities.CopyMemory` for left half then right half. O(height) memcpy passes at 1/8 scale — negligible cost.
+   - `finally` block: disposes `_rawBitmap1`, `_rawBitmap2`, nulls `_stitchedBitmap`, disposes `_desktopDuplicator2`.
+3. **`SettingsViewModel`**: `SelectedMonitor2` two-way property added — same pattern as `SelectedMonitor`, reads/writes `AdapterIndex2`/`OutputIndex2`.
+4. **`GeneralSetup.xaml`**: `BooleanToVisibilityConverter` declared in `UserControl.Resources`. Capture Display card extended with a "Span two displays" `ToggleButton` and a second `ComboBox` (visibility bound to `SpanningEnabled`).
+5. No new tests — stitching is hardware-bound (requires two live DXGI outputs); existing 101 tests unaffected.
+6. Version bumped to 3.7.1.
 
 ### 2026-03-27 — Multi-monitor support (v3.7.0)
 1. **`MonitorInfo`** model added (`Util/MonitorInfo.cs`) — carries `AdapterIndex`, `OutputIndex`, `DisplayLabel`; `ToString()` returns the label for WPF binding.
