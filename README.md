@@ -4,7 +4,7 @@
 
 > An Ambilight clone for Windows — lights up LEDs behind your screen in real time by sampling screen colours
 
-**adrilight 3.6.4 — AbsenteeAtom Edition**
+**adrilight 3.6.5 — AbsenteeAtom Edition**
 Forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9 (the final upstream release).
 The original author retired the project; this fork modernises it for .NET 8 and adds new features.
 
@@ -41,6 +41,13 @@ The result is a responsive ambient lighting effect that matches whatever is on s
 ---
 
 ## What's new
+
+### 3.6.5
+
+- **Sound to Light: piecewise frequency-to-colour mapping** — the lower eight octaves (20 Hz–10 kHz) are mapped logarithmically from red through to cyan, as before. Above 10 kHz the mapping switches to two dedicated linear segments: cyan→blue over 10–14 kHz, and blue→violet over 14–20 kHz. Both transition points are mathematically continuous so there is no visible colour step at the boundaries. Blue and violet are no longer at the rarely-reached end of a gradient — they are reserved exclusively for high-frequency content (cymbals, hi-hats, air), making them meaningful visual indicators
+- **Sound to Light: extended violet range** — the visible wavelength range is extended from 400–700 nm to 380–700 nm. Deepest violet (380 nm, appearing magenta-purple) is now reachable and is reserved for the very highest audio frequencies above 14 kHz
+- **Sound to Light: Band Spread toggle** — new toggle on the Sound to Light settings tab. When on, each LED also responds to energy in the two adjacent frequency bands on each side (±1 band at 50%, ±2 bands at 15%), keeping more LEDs active during narrow-spectrum content such as pure tones or single-instrument passages. Off by default; does not change colour assignment, only brightness
+- **Sound to Light: smooth reshuffle transitions** — LED brightness is now preserved across bass-triggered reshuffles. Previously all smoothed values reset to zero on every reshuffle, causing LEDs to snap to black and ramp back up through the attack envelope — a stepped, stuttering effect visible at startup and on strong bass hits. LEDs now fade smoothly into their new band assignments
 
 ### 3.6.4
 

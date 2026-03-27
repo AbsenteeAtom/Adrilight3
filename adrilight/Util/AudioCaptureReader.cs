@@ -167,10 +167,13 @@ namespace adrilight.Util
                 newColors[i]  = bands[b].Color;
             }
 
-            // Replace arrays atomically; local refs captured before the swap stay consistent
+            // Replace arrays atomically; local refs captured before the swap stay consistent.
+            // Preserve the smoothed brightness array so LEDs fade smoothly into new band levels
+            // rather than snapping to black and ramping up on every beat (which causes visible steps).
+            float[] existing = _spotSmoothed;
             _spotBins       = newBandIdx;
             _spotBaseColors = newColors;
-            _spotSmoothed   = new float[n];   // reset per-spot smoothing on reshuffle
+            _spotSmoothed   = (existing?.Length == n) ? existing : new float[n];
             ReshuffleCount++;
         }
 
@@ -310,6 +313,9 @@ namespace adrilight.Util
             var bandLevels = new float[NBands];
             for (int b = 0; b < NBands; b++)
                 bandLevels[b] = Math.Clamp(bandRms[b] / reference * sensScale, 0f, 1f);
+
+            if (_settings.SoundToLightBandSpread)
+                bandLevels = ComputeSpread(bandLevels);
 
             lock (_spotSet.Lock)
             {
@@ -541,27 +547,42 @@ namespace adrilight.Util
             => Math.Max(1, FrequencyToBin(BandLowFrequency(bandIndex), sampleRate));
 
         /// <summary>
-        /// Maps a frequency in Hz to a visible-light wavelength in nm using a logarithmic scale.
-        /// 20 Hz → 700 nm (red), 20 000 Hz → 400 nm (violet).
+        /// Maps a frequency in Hz to a visible-light wavelength in nm using a piecewise scale:
+        /// 20 Hz–10 kHz → logarithmic, 700 nm (red) → 490 nm (cyan);
+        /// 10 kHz–14 kHz → linear, 490 nm (cyan) → 440 nm (blue);
+        /// 14 kHz–20 kHz → linear, 440 nm (blue) → 380 nm (violet).
+        /// The function is continuous at both breakpoints.
         /// </summary>
         internal static float FrequencyToWavelength(float hz)
         {
-            const float fMin  = 20f,  fMax  = 20000f;
-            const float nmMax = 700f, nmMin = 400f;
-            float t = MathF.Log(Math.Clamp(hz, fMin, fMax) / fMin) / MathF.Log(fMax / fMin);
-            return nmMax - t * (nmMax - nmMin);
+            hz = Math.Clamp(hz, 20f, 20000f);
+            if (hz <= 10000f)
+            {
+                float t = MathF.Log(hz / 20f) / MathF.Log(10000f / 20f);
+                return 700f - t * (700f - 490f);
+            }
+            else if (hz <= 14000f)
+            {
+                float t = (hz - 10000f) / 4000f;
+                return 490f - t * (490f - 440f);
+            }
+            else
+            {
+                float t = (hz - 14000f) / 6000f;
+                return 440f - t * (440f - 380f);
+            }
         }
 
         /// <summary>
-        /// Converts a visible-light wavelength in nm (400–700) to linear sRGB (0–1 floats)
-        /// using the Bruton visible-spectrum approximation.
+        /// Converts a visible-light wavelength in nm (380–700) to linear sRGB (0–1 floats)
+        /// using the Bruton visible-spectrum approximation (no perceptual dimming factor).
         /// </summary>
         internal static (float r, float g, float b) WavelengthToRgb(float nm)
         {
-            if (nm < 400f || nm > 700f) return (0f, 0f, 0f);
+            if (nm < 380f || nm > 700f) return (0f, 0f, 0f);
 
             float r, g, b;
-            if      (nm < 440f) { r = (440f - nm) / 40f;  g = 0f;                b = 1f; }
+            if      (nm < 440f) { r = (440f - nm) / 60f;  g = 0f;                b = 1f; }
             else if (nm < 490f) { r = 0f;                  g = (nm - 440f) / 50f; b = 1f; }
             else if (nm < 510f) { r = 0f;                  g = 1f;                b = (510f - nm) / 20f; }
             else if (nm < 580f) { r = (nm - 510f) / 70f;  g = 1f;                b = 0f; }
@@ -569,6 +590,26 @@ namespace adrilight.Util
             else                { r = 1f;                  g = 0f;                b = 0f; }
 
             return (r, g, b);
+        }
+
+        /// <summary>
+        /// Spreads band energy to neighbouring bands using a 5-tap kernel (±1 band = 50%, ±2 bands = 15%).
+        /// Uses max() so a band is brightened by its loudest neighbour without summing past 1.0.
+        /// </summary>
+        internal static float[] ComputeSpread(float[] levels)
+        {
+            int n = levels.Length;
+            var spread = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                float v = levels[i];
+                if (i > 0)     v = MathF.Max(v, 0.50f * levels[i - 1]);
+                if (i < n - 1) v = MathF.Max(v, 0.50f * levels[i + 1]);
+                if (i > 1)     v = MathF.Max(v, 0.15f * levels[i - 2]);
+                if (i < n - 2) v = MathF.Max(v, 0.15f * levels[i + 2]);
+                spread[i] = v;
+            }
+            return spread;
         }
 
         /// <summary>Convert a frequency in Hz to the nearest FFT bin index.</summary>

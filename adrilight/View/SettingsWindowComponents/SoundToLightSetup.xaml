@@ -70,6 +70,23 @@
 
         <materialDesign:Card Margin="4 4 4 4" Width="440">
             <StackPanel Margin="16 12 16 16">
+                <DockPanel>
+                    <ToggleButton DockPanel.Dock="Right"
+                                  Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                  IsChecked="{Binding Settings.SoundToLightBandSpread}"
+                                  ToolTip="Spreads each band's brightness to neighbouring bands (±1 = 50%, ±2 = 15%), so more LEDs stay lit for narrow-spectrum audio." />
+                    <TextBlock FontWeight="Bold" VerticalAlignment="Center">Band Spread</TextBlock>
+                </DockPanel>
+                <TextBlock TextWrapping="Wrap" Margin="0 8 0 0" TextAlignment="Justify">
+                    When on, each LED also responds to energy in adjacent frequency bands at reduced
+                    brightness. Keeps more LEDs active for pure tones or narrow-spectrum content.
+                    Off by default; does not affect colour assignment, only brightness.
+                </TextBlock>
+            </StackPanel>
+        </materialDesign:Card>
+
+        <materialDesign:Card Margin="4 4 4 4" Width="440">
+            <StackPanel Margin="16 12 16 16">
                 <!-- Label + auto-detect toggle on same row -->
                 <DockPanel>
                     <ToggleButton DockPanel.Dock="Right"

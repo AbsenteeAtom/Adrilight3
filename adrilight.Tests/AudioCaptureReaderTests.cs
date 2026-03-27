@@ -198,11 +198,21 @@ namespace adrilight.Tests
         [TestMethod]
         public void WavelengthToRgb_400nm_IsViolet()
         {
-            // 400 nm: r=(440-400)/40=1, g=0, b=1 → violet (magenta approximation)
+            // 400 nm: r=(440-400)/60≈0.667, g=0, b=1 → blue-violet (ramp now spans 380–440 nm)
             var (r, g, b) = WavelengthToRgb(400f);
-            Assert.AreEqual(0f, g, "400 nm (violet) should have G=0");
-            Assert.AreEqual(1f, b, "400 nm (violet) should have B=1");
-            Assert.AreEqual(1f, r, "400 nm (violet) should have R=1 (Bruton magenta approximation)");
+            Assert.AreEqual(0f,    g, 1e-4f, "400 nm (violet) should have G=0");
+            Assert.AreEqual(1f,    b, 1e-4f, "400 nm (violet) should have B=1");
+            Assert.AreEqual(40f / 60f, r, 1e-4f, "400 nm (violet) should have R≈0.667 (380–440 nm ramp)");
+        }
+
+        [TestMethod]
+        public void WavelengthToRgb_380nm_IsMagentaViolet()
+        {
+            // 380 nm: r=(440-380)/60=1, g=0, b=1 → magenta-violet (deepest visible violet)
+            var (r, g, b) = WavelengthToRgb(380f);
+            Assert.AreEqual(1f, r, 1e-4f, "380 nm should have R=1");
+            Assert.AreEqual(0f, g, 1e-4f, "380 nm should have G=0");
+            Assert.AreEqual(1f, b, 1e-4f, "380 nm should have B=1");
         }
 
         // ── Frequency-to-wavelength helper ───────────────────────────────────────
@@ -214,22 +224,60 @@ namespace adrilight.Tests
         }
 
         [TestMethod]
-        public void FrequencyToWavelength_20kHz_Returns400nm()
+        public void FrequencyToWavelength_20kHz_Returns380nm()
         {
-            Assert.AreEqual(400f, FrequencyToWavelength(20000f), 0.01f, "20 kHz should map to 400 nm (violet)");
+            Assert.AreEqual(380f, FrequencyToWavelength(20000f), 0.01f, "20 kHz should map to 380 nm (violet)");
+        }
+
+        [TestMethod]
+        public void FrequencyToWavelength_10kHz_Returns490nm()
+        {
+            Assert.AreEqual(490f, FrequencyToWavelength(10000f), 0.01f,
+                "10 kHz (log/linear boundary) should map to 490 nm (cyan) — continuous from both sides");
+        }
+
+        [TestMethod]
+        public void FrequencyToWavelength_14kHz_Returns440nm()
+        {
+            Assert.AreEqual(440f, FrequencyToWavelength(14000f), 0.01f,
+                "14 kHz (blue/violet boundary) should map to 440 nm (blue) — continuous from both sides");
         }
 
         [TestMethod]
         public void FrequencyToWavelength_MonotonicallyDecreasing()
         {
             float prev = FrequencyToWavelength(20f);
-            foreach (float hz in new[] { 100f, 500f, 2000f, 8000f, 10000f })
+            foreach (float hz in new[] { 100f, 500f, 2000f, 8000f, 10000f, 14000f, 20000f })
             {
                 float nm = FrequencyToWavelength(hz);
                 Assert.IsTrue(nm < prev,
                     $"{hz} Hz should map to a lower wavelength than {prev:F1} nm, got {nm:F1} nm");
                 prev = nm;
             }
+        }
+
+        // ── Band spread helper ────────────────────────────────────────────────────
+
+        [TestMethod]
+        public void ComputeSpread_IsolatedBand_SpreadsToNeighbours()
+        {
+            var input = new float[NBands];
+            input[5] = 1.0f;
+            var result = ComputeSpread(input);
+            Assert.AreEqual(1.00f, result[5], 1e-4f, "Center band unchanged");
+            Assert.AreEqual(0.50f, result[4], 1e-4f, "-1 band gets 50%");
+            Assert.AreEqual(0.50f, result[6], 1e-4f, "+1 band gets 50%");
+            Assert.AreEqual(0.15f, result[3], 1e-4f, "-2 bands gets 15%");
+            Assert.AreEqual(0.15f, result[7], 1e-4f, "+2 bands gets 15%");
+            Assert.AreEqual(0.00f, result[0], 1e-4f, "Far bands unaffected");
+        }
+
+        [TestMethod]
+        public void ComputeSpread_AllZero_ReturnsAllZero()
+        {
+            var result = ComputeSpread(new float[NBands]);
+            foreach (float v in result)
+                Assert.AreEqual(0f, v, 1e-4f, "All-zero input should stay all-zero");
         }
 
         // ── Band model helpers ────────────────────────────────────────────────────
@@ -266,7 +314,7 @@ namespace adrilight.Tests
         [TestMethod]
         public void HighBand_HasCoolColor()
         {
-            // Band 31 centre ≈ 7700 Hz → wavelength near 430 nm → blue dominant
+            // Band 31 centre ≈ 17 957 Hz → ~400 nm (blue-violet) → B=1, R≈0.67, b > r
             var (r, g, b) = WavelengthToRgb(FrequencyToWavelength(BandCenterFrequency(NBands - 1)));
             Assert.IsTrue(b > r,
                 $"Highest band should produce a cooler (bluer) colour (R={r:F2}, B={b:F2})");

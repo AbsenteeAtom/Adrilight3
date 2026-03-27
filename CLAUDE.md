@@ -4,7 +4,7 @@
 
 **adrilight** is a Windows desktop app (WPF, .NET 8.0, x64) that drives ambient LED lighting by capturing the screen via SharpDX/DXGI and sending colour data over a serial port to an Arduino-based LED controller.
 
-This is **adrilight 3.6.4 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
+This is **adrilight 3.6.5 — AbsenteeAtom Edition**, forked from [fabsenet/adrilight](https://github.com/fabsenet/adrilight) v2.0.9.
 
 ### Key technologies
 - WPF + Windows Forms, targeting `net8.0-windows`
@@ -40,7 +40,7 @@ adrilight.Tests/
   AudioCaptureReaderTests.cs    — ModeId, Start/Stop wiring, zero-audio, burst at assigned band, sensitivity, band model helpers (BuildBands, BandBinLo, BandCenterFrequency), wavelength/colour pure helpers (20 tests)
 ```
 
-Total tests: **96/96 passing**
+Total tests: **101/101 passing**
 
 ### Running tests
 ```
@@ -426,6 +426,15 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 7. **Spurious 'no pipeline' warning suppressed:** `ModeManager.SetMode()` no longer warns when `_activeMode == ScreenCapture` — `DesktopDuplicatorReader` manages itself via `PropertyChanged` and intentionally has no `ILightingMode` entry.
 8. **Diagnostics Copy log button:** `CopyToClipboardCommand` added to `DiagnosticsViewModel`; copies all `FilteredEntries` (oldest-first, full timestamp/level/logger/message) to clipboard. "Copy log" button added to filter toolbar in `Diagnostics.xaml`.
 9. **AudioCaptureReaderTests updated:** `MakeSettings` mock sets up gain properties; `FrequencyToWavelength_20kHz_Returns400nm` replaces 10 kHz variant; old band-model tests (`BuildBands_Returns32Bands`, `BandBinLo_NonDecreasingAcrossBands`, `LowBand_HasWarmColor`, `HighBand_HasCoolColor`, `BurstAtAssignedBand_LightsUpSpot`, `HighSensitivity_BrighterThanLowSensitivity`) added. Total tests: 86/86.
+
+### 2026-03-26 — Piecewise colour mapping, band spread, smooth reshuffles (v3.6.5)
+1. **`FrequencyToWavelength` redesigned** (piecewise): 20 Hz–10 kHz → logarithmic, 700 nm→490 nm (red→cyan); 10 kHz–14 kHz → linear, 490 nm→440 nm (cyan→blue); 14 kHz–20 kHz → linear, 440 nm→380 nm (blue→violet). Mathematically continuous at both breakpoints.
+2. **`WavelengthToRgb` range extended** 400 nm → 380 nm: lower bound changed from `nm < 400f` to `nm < 380f`; red-ramp divisor changed from `40f` to `60f` (ramp now spans the full 380–440 nm range). Bruton perceptual dimming factor was never present in this implementation. At 380 nm: (1, 0, 1) = magenta-violet.
+3. **`SoundToLightBandSpread` setting** added (`bool`, default `false`) to `IUserSettings`, `UserSettings`, `UserSettingsFake`. `ComputeSpread(float[] levels)` added as `internal static` pure helper in `AudioCaptureReader` — 5-tap max kernel (±1 band = 50%, ±2 bands = 15%). Applied in `ApplyToSpots` when setting is enabled. Toggle added to `SoundToLightSetup.xaml` between Smoothing and BPM cards.
+4. **Smooth reshuffle transitions**: `ShuffleSpotAssignments()` previously reset `_spotSmoothed = new float[n]` on every call, causing all LEDs to snap to black and ramp up through the attack envelope on every bass hit (visible as steps). Now preserves the existing array when length matches: `_spotSmoothed = (existing?.Length == n) ? existing : new float[n]`.
+5. **Benchmarks project removed from solution** (`adrilight.sln`): the `adrilight.benchmarks` project targeted .NET 4.7.2 with `packages.config` HintPath references pointing to a non-existent `packages/` folder — it was never loadable and caused a persistent "project failed to load" warning in VS Code. Project and configuration entries removed from `.sln`; folder left on disk.
+6. **Tests**: `FrequencyToWavelength_20kHz_Returns380nm` (renamed from 400 nm), `FrequencyToWavelength_10kHz_Returns490nm`, `FrequencyToWavelength_14kHz_Returns440nm` (boundary continuity), `FrequencyToWavelength_MonotonicallyDecreasing` extended to include 14 kHz and 20 kHz, `WavelengthToRgb_400nm_IsViolet` updated (R now 40/60 ≈ 0.667), `WavelengthToRgb_380nm_IsMagentaViolet` added, `ComputeSpread_IsolatedBand_SpreadsToNeighbours`, `ComputeSpread_AllZero_ReturnsAllZero`. Total: 101/101.
+7. Version bumped to 3.6.5.
 
 ### 2026-03-25 — Auto BPM detection (v3.6.4)
 1. **`IBpmDetector` interface** added (`Util/IBpmDetector.cs`, `public`) — `DetectedBpm` (int), `BpmConfidence` (float 0..1), `BpmStatusText` (string), extends `INotifyPropertyChanged`.
