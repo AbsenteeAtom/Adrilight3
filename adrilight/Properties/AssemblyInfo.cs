@@ -32,7 +32,7 @@ using System.Runtime.InteropServices;
 // übernehmen, indem Sie "*" eingeben:
 // [assembly: AssemblyVersion("1.0.*")]
 
-[assembly: AssemblyVersion("3.7.2")]
-[assembly: AssemblyFileVersion("3.7.2")]
+[assembly: AssemblyVersion("3.7.3")]
+[assembly: AssemblyFileVersion("3.7.3")]
 
 [assembly: InternalsVisibleTo("adrilight.Tests")]

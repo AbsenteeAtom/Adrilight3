@@ -338,7 +338,17 @@ namespace adrilight
                 catch (Exception ex)
                 {
                     if (ex.Message != "_outputDuplication is null")
-                        _log.Error(ex, "GetNextFrame() failed.");
+                    {
+                        // DXGI_ERROR_ACCESS_LOST (0x887A0026): display session changed — screensaver,
+                        // lock screen, sleep, or resolution change. Expected and self-recovering; demote
+                        // to Debug so it doesn't appear in the Diagnostics tab as a spurious error.
+                        const int DxgiErrorAccessLost = unchecked((int)0x887A0026);
+                        bool isSessionChange = (ex.InnerException as SharpDX.SharpDXException)?.ResultCode.Code == DxgiErrorAccessLost;
+                        if (isSessionChange)
+                            _log.Debug(ex, "GetNextFrame() failed: display session changed (screensaver/lock/sleep).");
+                        else
+                            _log.Error(ex, "GetNextFrame() failed.");
+                    }
                     _desktopDuplicator?.Dispose();
                     _desktopDuplicator = null;
                     throw;
@@ -358,7 +368,14 @@ namespace adrilight
             catch (Exception ex)
             {
                 if (ex.Message != "_outputDuplication is null")
-                    _log.Error(ex, "GetNextFrame() spanning capture failed.");
+                {
+                    const int DxgiErrorAccessLost = unchecked((int)0x887A0026);
+                    bool isSessionChange = (ex.InnerException as SharpDX.SharpDXException)?.ResultCode.Code == DxgiErrorAccessLost;
+                    if (isSessionChange)
+                        _log.Debug(ex, "GetNextFrame() spanning capture failed: display session changed.");
+                    else
+                        _log.Error(ex, "GetNextFrame() spanning capture failed.");
+                }
                 _desktopDuplicator?.Dispose();  _desktopDuplicator  = null;
                 _desktopDuplicator2?.Dispose(); _desktopDuplicator2 = null;
                 throw;

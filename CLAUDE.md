@@ -446,6 +446,12 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 8. **Diagnostics Copy log button:** `CopyToClipboardCommand` added to `DiagnosticsViewModel`; copies all `FilteredEntries` (oldest-first, full timestamp/level/logger/message) to clipboard. "Copy log" button added to filter toolbar in `Diagnostics.xaml`.
 9. **AudioCaptureReaderTests updated:** `MakeSettings` mock sets up gain properties; `FrequencyToWavelength_20kHz_Returns400nm` replaces 10 kHz variant; old band-model tests (`BuildBands_Returns32Bands`, `BandBinLo_NonDecreasingAcrossBands`, `LowBand_HasWarmColor`, `HighBand_HasCoolColor`, `BurstAtAssignedBand_LightsUpSpot`, `HighSensitivity_BrighterThanLowSensitivity`) added. Total tests: 86/86.
 
+### 2026-03-31 — Screensaver error suppressed (v3.7.3)
+1. **Root cause identified:** A spurious `GetNextFrame() failed` ERROR appeared in the Diagnostics log each time the screensaver activated. DXGI raises `DXGI_ERROR_ACCESS_LOST` (0x887A0026) the instant the display session changes — before the 5-second screensaver poll fires the inhibitor. The error is expected and self-recovering.
+2. **Fix:** Both `catch` blocks in `GetNextFrame()` (single-monitor and spanning paths) now inspect `ex.InnerException as SharpDXException` for HRESULT `0x887A0026`. If matched, the log is demoted to `Debug` (invisible in Diagnostics tab). Any other HRESULT still logs at `Error`.
+3. No new tests — entirely in the hardware-bound capture path.
+4. Version bumped to 3.7.3.
+
 ### 2026-03-30 — Spanning toggle bug fix (v3.7.2)
 1. **Root cause identified:** Toggling `SpanningEnabled` on or off caused `GetNextFrame() failed` errors on the next capture cycle. Creating or destroying a second `DuplicateOutput` session on the same DXGI adapter invalidates the primary session, so `_desktopDuplicator` would throw on the next frame even though its indices hadn't changed.
 2. **Fix:** Split `SpanningEnabled` into its own `case` in `DesktopDuplicatorReader.PropertyChanged`. When `SpanningEnabled` changes, both `_desktopDuplicator` and `_desktopDuplicator2` are disposed and nulled, so both are rebuilt cleanly on the next `GetNextFrame()` call. `AdapterIndex2`/`OutputIndex2` changes continue to dispose only the secondary duplicator (the primary is unaffected when only the second monitor's indices change).
