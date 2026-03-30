@@ -51,9 +51,19 @@ namespace adrilight
                     break;
 
                 case nameof(UserSettings.SpanningEnabled):
+                    // Toggling spanning creates/destroys a second DuplicateOutput session on the same DXGI
+                    // adapter, which invalidates the primary session. Discard both duplicators so both are
+                    // rebuilt cleanly on the next GetNextFrame() call.
+                    _desktopDuplicator?.Dispose();
+                    _desktopDuplicator = null;
+                    _desktopDuplicator2?.Dispose();
+                    _desktopDuplicator2 = null;
+                    RefreshCapturingState();
+                    break;
+
                 case nameof(UserSettings.AdapterIndex2):
                 case nameof(UserSettings.OutputIndex2):
-                    // Discard the secondary duplicator so GetNextFrame() rebuilds it with the new config.
+                    // Second monitor index changed — only the secondary duplicator needs rebuilding.
                     _desktopDuplicator2?.Dispose();
                     _desktopDuplicator2 = null;
                     RefreshCapturingState();

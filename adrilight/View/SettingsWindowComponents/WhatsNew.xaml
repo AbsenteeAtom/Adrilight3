@@ -24,7 +24,7 @@
         <materialDesign:Card Margin="4 4 4 4" Grid.Row="0">
             <StackPanel Margin="38 28 38 28">
                 <TextBlock FontSize="24" FontWeight="Bold" Margin="0 0 0 8">adrilight</TextBlock>
-                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.7.1 — AbsenteeAtom Edition</TextBlock>
+                <TextBlock FontSize="16" Margin="0 0 0 12">Version 3.7.2 — AbsenteeAtom Edition</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 6">
                     Ambient LED lighting for Windows. Captures your screen in real time using the Desktop Duplication API,
                     calculates the average colour across zones around the edge of the screen, and drives a WS2812b LED
@@ -39,7 +39,18 @@
         <!-- What's new -->
         <materialDesign:Card Margin="4 0 4 4" Grid.Row="1">
             <StackPanel Margin="38 28 38 28">
-                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.7.1</TextBlock>
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 0 0 16">What's new in 3.7.2</TextBlock>
+
+                <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Spanning toggle bug fix</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0 0 0 12">
+                    ● Fixed: toggling Span two displays on or off could cause "GetNextFrame() failed" errors
+                    on the next capture cycle. Root cause: creating or destroying a second DXGI
+                    DuplicateOutput session on the same adapter invalidates the primary session. The fix
+                    discards both the primary and secondary duplicator instances when spanning is toggled,
+                    so both are rebuilt cleanly on the next frame.
+                </TextBlock>
+
+                <TextBlock FontWeight="Bold" FontSize="14" Margin="0 16 0 16">What's new in 3.7.1</TextBlock>
 
                 <TextBlock FontWeight="SemiBold" Margin="0 0 0 6">Dual-display spanning</TextBlock>
                 <TextBlock TextWrapping="Wrap" Margin="0 0 0 4">
