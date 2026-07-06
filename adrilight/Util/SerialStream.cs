@@ -262,10 +262,18 @@ namespace adrilight
                 }
                 finally
                 {
-                    if (serialPort != null && serialPort.IsOpen)
+                    try
                     {
-                        serialPort.Close();
-                        serialPort.Dispose();
+                        if (serialPort != null && serialPort.IsOpen)
+                        {
+                            serialPort.Close();
+                            serialPort.Dispose();
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // SerialPort.Close() can throw OperationCanceledException if I/O was
+                        // in-flight when the port was cancelled. Safe to swallow — we're tearing down.
                     }
                 }
             }

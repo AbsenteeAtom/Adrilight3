@@ -446,6 +446,18 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 8. **Diagnostics Copy log button:** `CopyToClipboardCommand` added to `DiagnosticsViewModel`; copies all `FilteredEntries` (oldest-first, full timestamp/level/logger/message) to clipboard. "Copy log" button added to filter toolbar in `Diagnostics.xaml`.
 9. **AudioCaptureReaderTests updated:** `MakeSettings` mock sets up gain properties; `FrequencyToWavelength_20kHz_Returns400nm` replaces 10 kHz variant; old band-model tests (`BuildBands_Returns32Bands`, `BandBinLo_NonDecreasingAcrossBands`, `LowBand_HasWarmColor`, `HighBand_HasCoolColor`, `BurstAtAssignedBand_LightsUpSpot`, `HighSensitivity_BrighterThanLowSensitivity`) added. Total tests: 86/86.
 
+### 2026-07-01 — Locked bitmap crash fix (v3.7.5)
+1. **Root cause:** The startup dark-frame skip added in v3.7.3 used `continue` inside the `lock (SpotSet.Lock)` block to skip dark frames. `continue` jumped back to the top of the `while` loop before `image.UnlockBits(bitmapData)` (line 241, after the lock block). On the next iteration, `GetLatestFrame` called `image.LockBits` again inside `ProcessFrame` — which threw `InvalidOperationException: "Bitmap region is already locked"`. The retry policy caught and retried forever, flooding Diagnostics with errors and preventing LED updates for the entire session.
+2. **Fix:** Replaced `continue` with a `bool skipFrame` flag set inside the lock. `image.UnlockBits(bitmapData)` is now always called after the lock block, then `if (skipFrame) continue` skips the frame time sleep. `SpotSet.IsDirty`, `_logNextFrame`, and `PreviewSpots` are only set when `!skipFrame`.
+3. No new tests — the crash path is inside the hardware-bound capture loop.
+4. Version bumped to 3.7.5.
+
+### 2026-06-26 — SerialPort close crash fix (v3.7.4)
+1. **Root cause:** `System.IO.Ports.SerialStream.Dispose()` throws `OperationCanceledException` when closed while async I/O is still in-flight — a known .NET quirk. In `SerialStream.DoWork()`, the `catch (OperationCanceledException)` handler at the inner try/catch level would call `return`, which triggered the `finally` block. Inside the `finally`, `serialPort.Close()` threw a second `OperationCanceledException`. Exceptions thrown from a `finally` block bypass the enclosing `catch` blocks (those had already run), so it escaped `DoWork` as an unhandled exception on the background thread and crashed the process (`CurrentDomain.UnhandledException`).
+2. **Fix:** Wrapped the `finally` block body in its own `try/catch (OperationCanceledException)` to swallow the port teardown exception. Any other exception type still propagates normally.
+3. No new tests — the crash path is inside the hardware-bound serial port teardown.
+4. Version bumped to 3.7.4.
+
 ### 2026-03-31 — Screensaver error suppressed (v3.7.3)
 1. **Root cause identified:** A spurious `GetNextFrame() failed` ERROR appeared in the Diagnostics log each time the screensaver activated. DXGI raises `DXGI_ERROR_ACCESS_LOST` (0x887A0026) the instant the display session changes — before the 5-second screensaver poll fires the inhibitor. The error is expected and self-recovering.
 2. **Fix:** Both `catch` blocks in `GetNextFrame()` (single-monitor and spanning paths) now inspect `ex.InnerException as SharpDXException` for HRESULT `0x887A0026`. If matched, the log is demoted to `Debug` (invisible in Diagnostics tab). Any other HRESULT still logs at `Error`.
@@ -563,12 +575,6 @@ Migration logic (v1→v2 SpotsY adjustment) had lived in `App.xaml.cs` alongside
 **TCP extensions (`TcpControlServer`):**
 - `STATUS` now returns `{"status":"on/off","mode":"screen/sound/gamer"}`
 - New commands: `MODE SCREEN`, `MODE SOUND`, `MODE GAMER`, `MODE STATUS`
-
----
-
-## Outstanding Bugs
-
-*(none)*
 
 ---
 

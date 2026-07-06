@@ -103,7 +103,7 @@ namespace adrilight.DesktopDuplication
             try
             {
                 if (_outputDuplication == null) throw new Exception("_outputDuplication is null");
-                _outputDuplication.AcquireNextFrame(500, out frameInformation, out desktopResource);
+                _outputDuplication.AcquireNextFrame(16, out frameInformation, out desktopResource);
             }
             catch (SharpDXException ex)
             {

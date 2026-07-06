@@ -174,6 +174,7 @@ namespace adrilight
                         ? DetectBlackBars(bitmapData, image.Width, image.Height, UserSettings.BlackBarLuminanceThreshold)
                         : new Rectangle(0, 0, image.Width, image.Height);
 
+                    bool skipFrame = false;
                     lock (SpotSet.Lock)
                     {
                         var useLinearLighting = UserSettings.UseLinearLighting;
@@ -200,13 +201,51 @@ namespace adrilight
                             }
                         }
 
-                        SpotSet.IsDirty = true;
+                        if (_firstFrameAfterConnect)
+                        {
+                            // The DXGI shared surface builds up incrementally after connect — early
+                            // frames are often nearly black even though the screen is bright. Skip
+                            // dark startup frames (avg per-channel < 20) for up to 5 seconds so the
+                            // Arduino keeps showing its previous state rather than going to black.
+                            // After 5 seconds we accept whatever we have.
+                            const double brightThreshold = 20.0;
+                            const double startupWindowMs = 5000.0;
+                            double avgBrightness = SpotSet.Spots.Average(s => ((double)s.Red + s.Green + s.Blue) / 3.0);
+                            bool isStartupWindowExpired = _connectTime.HasValue &&
+                                (DateTime.UtcNow - _connectTime.Value).TotalMilliseconds > startupWindowMs;
 
-                        if (isPreviewRunning)
-                            SettingsViewModel.PreviewSpots = SpotSet.Spots;
+                            if (avgBrightness < brightThreshold && !isStartupWindowExpired)
+                            {
+                                _log.Debug($"Skipping dark startup frame (avg={avgBrightness:F1}, elapsed={(DateTime.UtcNow - _connectTime!.Value).TotalMilliseconds:F0}ms)");
+                                skipFrame = true;
+                            }
+                            else
+                            {
+                                _firstFrameAfterConnect = false;
+                                _log.Info($"First accepted frame: avg brightness={avgBrightness:F1}");
+                            }
+                        }
+
+                        if (!skipFrame)
+                        {
+                            SpotSet.IsDirty = true;
+
+                            if (_logNextFrame)
+                            {
+                                _logNextFrame = false;
+                                double avgR = SpotSet.Spots.Average(s => (double)s.Red);
+                                double avgG = SpotSet.Spots.Average(s => (double)s.Green);
+                                double avgB = SpotSet.Spots.Average(s => (double)s.Blue);
+                                _log.Info($"First frame sent: avg R={avgR:F0} G={avgG:F0} B={avgB:F0}");
+                            }
+
+                            if (isPreviewRunning)
+                                SettingsViewModel.PreviewSpots = SpotSet.Spots;
+                        }
                     }
 
                     image.UnlockBits(bitmapData);
+                    if (skipFrame) continue;
 
                     int minFrameTimeInMs = 1000 / UserSettings.LimitFps;
                     var elapsedMs = (int)frameTime.ElapsedMilliseconds;
@@ -324,10 +363,19 @@ namespace adrilight
             return (byte)(256f * ((float)Math.Pow(factor, color / 256f) - 1f) / (factor - 1));
         }
 
+        private bool _firstFrameAfterConnect = true;
+        private bool _logNextFrame = true;
+        private DateTime? _connectTime;
+
         private Bitmap GetNextFrame(Bitmap reusableBitmap)
         {
             if (_desktopDuplicator == null)
+            {
                 _desktopDuplicator = new DesktopDuplicator(UserSettings.AdapterIndex, UserSettings.OutputIndex);
+                _firstFrameAfterConnect = true;
+                _logNextFrame = true;
+                _connectTime = DateTime.UtcNow;
+            }
 
             if (!UserSettings.SpanningEnabled)
             {

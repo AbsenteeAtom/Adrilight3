@@ -18,7 +18,7 @@
         
         d:DataContext="{Binding Source={StaticResource Locator}, Path=SettingsViewModel}"
         DataContext="{Binding Source={StaticResource Locator}, Path=SettingsViewModel}"
-        Title="{Binding Title}" WindowStartupLocation="CenterScreen" MinWidth="1220" MinHeight="700" d:DesignWidth="1461.241" d:DesignHeight="739.969" Closed="Window_Closed">
+        Title="{Binding Title}" WindowStartupLocation="CenterScreen" Width="1261" Height="740" MinWidth="1220" MinHeight="700" d:DesignWidth="1461.241" d:DesignHeight="739.969" Closed="Window_Closed">
     <DockPanel>
 
         <DockPanel Background="{DynamicResource MaterialDesignCardBackground}" Width="256" LastChildFill="True" DockPanel.Dock="Left" materialDesign:ShadowAssist.ShadowDepth="Depth2">
@@ -40,7 +40,7 @@
                 </ListBox.ItemTemplate>
             </ListBox>
         </DockPanel>
-        <materialDesign:ColorZone Padding="16" materialDesign:ShadowAssist.ShadowDepth="Depth2"
+        <materialDesign:ColorZone Padding="16" Height="64" materialDesign:ShadowAssist.ShadowDepth="Depth2"
                                             Mode="PrimaryDark" DockPanel.Dock="Top">
             <DockPanel>
                 <materialDesign:PopupBox DockPanel.Dock="Right" PlacementMode="BottomAndAlignRightEdges" StaysOpen="False">
