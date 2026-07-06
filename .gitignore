@@ -253,3 +253,5 @@ paket-files/
 
 
 Binary/
+# Claude Code usage analysis (local diagnosis doc)
+UsageAnalysis.md

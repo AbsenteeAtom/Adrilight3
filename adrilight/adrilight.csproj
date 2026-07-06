@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <NoWarn>CA1416</NoWarn>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -21,14 +21,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Castle.Core" Version="5.1.1" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.77" />
     <PackageReference Include="MoreLinq" Version="3.4.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Ninject" Version="3.3.6" />
     <PackageReference Include="Ninject.Extensions.Conventions" Version="3.3.0" />
-    <PackageReference Include="Ninject.Extensions.Factory" Version="3.3.2" />
     <PackageReference Include="NLog" Version="5.3.4" />
     <PackageReference Include="Polly" Version="8.4.1" />
     <PackageReference Include="System.IO.Ports" Version="10.0.5" />
@@ -39,26 +37,30 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="packages.config" />
-    <None Remove="App.config" />
-    <None Remove="adrilightApp.nuspec" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Include="adrilight_icon.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
+  <!-- SharpDX must use the net45 DLLs: the netstandard build in the same packages is
+       missing OutputDuplication.AcquireNextFrame. The PackageReferences below are
+       restore-only (ExcludeAssets="all") so a fresh clone downloads the packages;
+       the explicit Reference items then pin the net45 assemblies via the generated
+       Pkg* path properties. -->
+  <ItemGroup>
+    <PackageReference Include="SharpDX" Version="4.2.0" GeneratePathProperty="true" ExcludeAssets="all" />
+    <PackageReference Include="SharpDX.DXGI" Version="4.2.0" GeneratePathProperty="true" ExcludeAssets="all" />
+    <PackageReference Include="SharpDX.Direct3D11" Version="4.2.0" GeneratePathProperty="true" ExcludeAssets="all" />
+  </ItemGroup>
   <ItemGroup>
     <Reference Include="SharpDX">
-      <HintPath>$(USERPROFILE)\.nuget\packages\sharpdx\4.2.0\lib\net45\SharpDX.dll</HintPath>
+      <HintPath>$(PkgSharpDX)\lib\net45\SharpDX.dll</HintPath>
     </Reference>
     <Reference Include="SharpDX.DXGI">
-      <HintPath>$(USERPROFILE)\.nuget\packages\sharpdx.dxgi\4.2.0\lib\net45\SharpDX.DXGI.dll</HintPath>
+      <HintPath>$(PkgSharpDX_DXGI)\lib\net45\SharpDX.DXGI.dll</HintPath>
     </Reference>
     <Reference Include="SharpDX.Direct3D11">
-      <HintPath>$(USERPROFILE)\.nuget\packages\sharpdx.direct3d11\4.2.0\lib\net45\SharpDX.Direct3D11.dll</HintPath>
+      <HintPath>$(PkgSharpDX_Direct3D11)\lib\net45\SharpDX.Direct3D11.dll</HintPath>
     </Reference>
   </ItemGroup>
 
