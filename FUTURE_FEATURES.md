@@ -104,3 +104,32 @@ The temporal model should maintain a short rolling history of frequency band ene
 3. **Decay tracking** — the LED sequence continues and fades naturally over the event's expected decay duration, even if the audio transient is brief.
 
 The thunder sequence (slow rumble → flickering grey pattern → crack → white flash → rapid decay) is the canonical example of a multi-stage temporal sequence. The classifier must hold state across frames to produce this correctly.
+
+---
+
+# Maintenance Recommendations
+
+Deferred items from the 2026-07-06 csproj review and Claude Code usage analysis. None are urgent; each should be its own session with the stated verification.
+
+## Package updates (dedicated session, hardware test required)
+
+Current versions are pinned and working; updates change runtime behaviour, so bundle them into one session ending with a full manual test on the physical LED setup (screen capture, Sound to Light, serial output, tray, Diagnostics).
+
+| Package | Current | Notes |
+|---|---|---|
+| MaterialDesignThemes | 4.9.0 | **5.x is a breaking upgrade** (theme resource renames) — the riskiest item; do last, expect XAML churn similar to the 2.x→4.x migration |
+| MaterialDesignColors | 2.1.4 | Move in lockstep with MaterialDesignThemes |
+| NLog | 5.3.4 | 6.x available; programmatic config API mostly stable, verify file + Diagnostics targets still write |
+| CommunityToolkit.Mvvm | 8.3.2 | 8.4+ available; low risk |
+| Polly | 8.4.1 | Low risk; only used for the capture retry policy |
+| Microsoft.Xaml.Behaviors.Wpf | 1.1.77 | Low risk |
+| System.Reactive / MoreLinq | 6.0.1 / 3.4.0 | Only used by `FpsLogger`; alternatively rewrite `FpsLogger` with a plain timer and drop both packages |
+
+## SharpDX contingency
+
+SharpDX (4.2.0) has been unmaintained since 2019. It works today and there is no reason to migrate pre-emptively. **If** DXGI breakage ever appears on a future Windows version, the successor to evaluate is **Vortice.Windows** (actively maintained SharpDX descendant, near-identical API surface: `IDXGIOutputDuplication.AcquireNextFrame` exists). Migration touches only `DesktopDuplicator.cs` and `MonitorEnumerator.cs`.
+
+## Claude Code setup (from UsageAnalysis.md, 2026-07-06)
+
+- **Scope the graphify hook** — the global PreToolUse hook in `~/.claude/settings.json` launches Python on every Read/Glob in every project, but the script is hardcoded to the Remote Checkout pi graph, so in adrilight it is a guaranteed no-op process launch. Move the hook into `Remote Checkout/.claude/settings.json` (or add an immediate-exit CWD guard), and verify it still fires in the pi project afterwards.
+- **`/crash` triage skill** — sessions here often open with a hand-pasted crash dialog. A small skill could instead read the newest `publish/adrilight-*/logs/` files, extract recent ERROR/exception entries, correlate stack frames with source, and propose a root cause. Build it if crash-triage friction recurs now that `/ship` exists.
